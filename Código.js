@@ -182,7 +182,8 @@ function getSystemConfig(role) {
   const ppcModuleMaster = { id: "PPC_MASTER", label: "PPC Maestro", icon: "fa-tasks", color: "#fd7e14", type: "ppc_native" };
   const ppcModuleWeekly = { id: "WEEKLY_PLAN", label: "Planeación Semanal", icon: "fa-calendar-alt", color: "#6f42c1", type: "weekly_plan_view" };
   const ecgModule = { id: "ECG_SALES", label: "Monitor Vivos", icon: "fa-heartbeat", color: "#d63384", type: "ecg_dashboard" };
-  
+  const kpiModule = { id: "KPI_DASHBOARD", label: "KPI Performance", icon: "fa-chart-line", color: "#d63384", type: "kpi_dashboard_view" };
+
   if (role === 'TONITA') return { 
       departments: { "VENTAS": allDepts["VENTAS"] }, 
       allDepartments: allDepts, 
@@ -261,10 +262,98 @@ function getSystemConfig(role) {
     };
   }
 
+  // Default ADMIN (LUIS_CARLOS falls here with role 'ADMIN')
+  const defaultModules = [ ...ppcModules, { id: "MIRROR_TONITA", label: "Monitor Toñita", icon: "fa-eye", color: "#0dcaf0", type: "mirror_staff", target: "ANTONIA_VENTAS" }, ecgModule ];
+  if (role === 'ADMIN') {
+      defaultModules.push(kpiModule);
+  }
+
   return {
     departments: allDepts, allDepartments: allDepts, staff: fullDirectory, directory: fullDirectory,
-    specialModules: [ ...ppcModules, { id: "MIRROR_TONITA", label: "Monitor Toñita", icon: "fa-eye", color: "#0dcaf0", type: "mirror_staff", target: "ANTONIA_VENTAS" }, ecgModule ],
+    specialModules: defaultModules,
     accessProjects: true 
+  };
+}
+
+/* KPI ANALYSIS ENGINE */
+function apiFetchTeamKPIData(username) {
+  // Server-side identity validation
+  const user = USER_DB[String(username).toUpperCase().trim()];
+  if (!user || user.role !== 'ADMIN') {
+      return { success: false, message: 'Acceso Denegado. Privilegios insuficientes.' };
+  }
+
+  const MEMBERS_VENTAS = ['EDUARDO MANZANARES', 'SEBASTIAN PADILLA', 'RAMIRO RODRIGUEZ'];
+  const MEMBERS_TRACKER = ['JUDITH ECHAVARRIA', 'EDUARDO TERAN', 'ANGEL SALINAS'];
+
+  const processGroup = (members) => {
+    return members.map(name => {
+       const res = internalFetchSheetData(name);
+       if (!res.success) return { name: name, volume: 0, efficiency: 0, raw: [] };
+
+       // Filter Completed
+       const completed = (res.data || []).filter(row => {
+           const st = String(row['ESTATUS'] || row['STATUS'] || '').toUpperCase();
+           return st.includes('DONE') || st.includes('COMPLETED') || st.includes('FINALIZADO') || st.includes('TERMINADO');
+       });
+
+       // Calculate Cycle Time
+       let totalDays = 0;
+       let count = 0;
+
+       completed.forEach(t => {
+           // Try to find Start and End dates
+           // Assuming FECHA_INICIO/ALTA is start, and there might be a finished date or we use current if done?
+           // The prompt said: (Fecha de Finalización - Fecha de Inicio)
+           // We need to look for columns like "FECHA FIN", "FECHA ENTREGA", or similar if not standard.
+           // However, standard tasks usually have 'FECHA' (Start).
+           // If 'FECHA_RESPUESTA' is the target end date, it might not be the actual end date.
+           // We will look for "FECHA FIN" or use "FECHA_RESPUESTA" as proxy if explicit finish date is missing in tracking,
+           // BUT better to check if there is a 'FECHA_FIN_REAL' or similar.
+           // If not found, we might skip or assume logic.
+           // Given the mock data had FECHA_INICIO and FECHA_FIN, we assume columns exist or we derive them.
+           // In 'internalFetchSheetData' we map columns.
+
+           let start = t['FECHA'] || t['ALTA'] || t['FECHA INICIO'];
+           let end = t['FECHA FIN'] || t['FECHA_FIN'] || t['FECHA ENTREGA'] || t['FECHA RESPUESTA'];
+
+           if (start && end) {
+               // Parse dates
+               const pDate = (d) => {
+                   if (d instanceof Date) return d;
+                   if (String(d).includes('/')) {
+                       const pts = String(d).split('/');
+                       if(pts.length===3) return new Date(pts[2].length===2 ? '20'+pts[2] : pts[2], pts[1]-1, pts[0]);
+                   }
+                   return new Date(d);
+               };
+
+               const d1 = pDate(start);
+               const d2 = pDate(end);
+
+               if (!isNaN(d1) && !isNaN(d2)) {
+                   const diffTime = Math.abs(d2 - d1);
+                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                   totalDays += diffDays;
+                   count++;
+               }
+           }
+       });
+
+       const avg = count > 0 ? (totalDays / count).toFixed(1) : 0;
+
+       return {
+           name: name,
+           volume: completed.length,
+           efficiency: avg
+       };
+    });
+  };
+
+  return {
+      success: true,
+      ventas: processGroup(MEMBERS_VENTAS),
+      tracker: processGroup(MEMBERS_TRACKER)
   };
 }
 

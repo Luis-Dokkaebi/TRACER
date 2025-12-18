@@ -230,6 +230,74 @@
           </div>
         </div>
 
+        <div v-if="currentView === 'KPI_DASHBOARD'" class="h-100 d-flex flex-column" style="background-color:#f8f9fa; padding:20px;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                 <h4 class="fw-bold m-0 text-dark"><i class="fas fa-chart-pie me-2 text-danger"></i>KPI RENDIMIENTO - VISTA EXCLUSIVA</h4>
+                 <div>
+                    <button class="btn btn-outline-primary btn-sm me-2" @click="loadKPIData"><i class="fas fa-sync-alt"></i> ACTUALIZAR</button>
+                    <button class="btn btn-secondary btn-sm" @click="goHome">CERRAR</button>
+                 </div>
+            </div>
+
+            <div v-if="kpiData.isLoading" class="d-flex justify-content-center align-items-center h-100">
+                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
+            </div>
+
+            <div v-else class="row g-4 h-100 overflow-auto">
+                <!-- PANEL VENTAS -->
+                <div class="col-12">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white border-bottom fw-bold text-uppercase" style="color:#2c3e50">
+                            <i class="fas fa-hand-holding-usd me-2"></i>DASHBOARD VENTAS
+                        </div>
+                        <div class="card-body row">
+                            <div class="col-md-5">
+                                <table class="table table-bordered table-sm small">
+                                    <thead class="table-light"><tr><th>Colaborador</th><th class="text-center">Volumen</th><th class="text-center">Eficiencia (Días)</th></tr></thead>
+                                    <tbody>
+                                        <tr v-for="user in kpiData.ventas" :key="user.name">
+                                            <td class="fw-bold">{{ user.name }}</td>
+                                            <td class="text-center">{{ user.volume }}</td>
+                                            <td class="text-center text-primary fw-bold">{{ user.efficiency }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="col-md-7" style="height: 300px;">
+                                <canvas id="kpiChartVentas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL TRACKER -->
+                <div class="col-12">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-white border-bottom fw-bold text-uppercase" style="color:#e74c3c">
+                            <i class="fas fa-tasks me-2"></i>DASHBOARD TRACKER
+                        </div>
+                        <div class="card-body row">
+                            <div class="col-md-5">
+                                <table class="table table-bordered table-sm small">
+                                    <thead class="table-light"><tr><th>Colaborador</th><th class="text-center">Volumen</th><th class="text-center">Eficiencia (Días)</th></tr></thead>
+                                    <tbody>
+                                        <tr v-for="user in kpiData.tracker" :key="user.name">
+                                            <td class="fw-bold">{{ user.name }}</td>
+                                            <td class="text-center">{{ user.volume }}</td>
+                                            <td class="text-center text-danger fw-bold">{{ user.efficiency }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="col-md-7" style="height: 300px;">
+                                <canvas id="kpiChartTracker"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div v-if="currentView === 'ECG_VIEW'" class="h-100 d-flex flex-column" style="background-color:#000; margin:-20px; padding:20px;">
             <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-2">
                 <div class="d-flex align-items-center">
@@ -623,7 +691,7 @@
   const app = createApp({
     setup() {
       // ESTADO GLOBAL
-      const isLoggedIn = ref(false); const loginPass = ref(''); const loginUser = ref(''); const loggingIn = ref(false); const currentUser = ref('');
+      const isLoggedIn = ref(false); const loginPass = ref(''); const loginUser = ref(''); const loggingIn = ref(false); const currentUser = ref(''); const currentUsername = ref('');
       const currentView = ref('DASHBOARD'); const currentDept = ref('');
       const config = ref({ departments: {}, staff: [], directory: [], specialModules: [] });
       const staffTracker = ref({ name: '', data: [], history: [], headers: [], isLoading: false, previousView: 'DEPT' });
@@ -654,6 +722,10 @@
       // ECG (Electrocardiograma) STATE
       const ecgData = ref({});
       const ecgChartInstances = {};
+
+      // KPI STATE
+      const kpiData = ref({ ventas: [], tracker: [], isLoading: false });
+      const kpiChartInstances = { ventas: null, tracker: null };
 
       // --- GESTIÓN DE PROYECTOS (V138 - CASCADA) ---
       const showPpcSelectorModal = ref(false);
@@ -949,6 +1021,84 @@
               currentView.value = 'ECG_VIEW';
               loadEcgData();
           }
+          else if(m.type === 'kpi_dashboard_view') {
+              if (currentUsername.value !== 'LUIS_CARLOS') {
+                  Swal.fire('Acceso Denegado', 'No tienes permisos para ver este módulo.', 'error');
+                  return;
+              }
+              currentView.value = 'KPI_DASHBOARD';
+              loadKPIData();
+          }
+      };
+
+      const loadKPIData = () => {
+          kpiData.value.isLoading = true;
+          google.script.run.withSuccessHandler(res => {
+              kpiData.value.isLoading = false;
+              if (res.success) {
+                  kpiData.value.ventas = res.ventas;
+                  kpiData.value.tracker = res.tracker;
+                  nextTick(() => { renderKPICharts(); });
+              } else {
+                  Swal.fire('Error', res.message || 'No se pudieron cargar los KPIs.', 'error');
+              }
+          }).apiFetchTeamKPIData(currentUsername.value);
+      };
+
+      const renderKPICharts = () => {
+          // VENTAS CHART
+          const ctxVentas = document.getElementById('kpiChartVentas');
+          if (ctxVentas && kpiData.value.ventas.length) {
+               if (kpiChartInstances.ventas) kpiChartInstances.ventas.destroy();
+               const labels = kpiData.value.ventas.map(u => u.name.split(' ')[0]); // First name only
+               const dataEff = kpiData.value.ventas.map(u => u.efficiency);
+               const dataVol = kpiData.value.ventas.map(u => u.volume);
+
+               kpiChartInstances.ventas = new Chart(ctxVentas, {
+                   type: 'bar',
+                   data: {
+                       labels: labels,
+                       datasets: [
+                           { label: 'Eficiencia (Días)', data: dataEff, backgroundColor: '#2c3e50', yAxisID: 'y' },
+                           { label: 'Volumen', data: dataVol, type: 'line', borderColor: '#e67e22', tension: 0.1, yAxisID: 'y1' }
+                       ]
+                   },
+                   options: {
+                       responsive: true, maintainAspectRatio: false,
+                       scales: {
+                           y: { type: 'linear', display: true, position: 'left', title: { display:true, text: 'Días Promedio' } },
+                           y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display:true, text: 'Tareas' } }
+                       }
+                   }
+               });
+          }
+
+          // TRACKER CHART
+          const ctxTracker = document.getElementById('kpiChartTracker');
+          if (ctxTracker && kpiData.value.tracker.length) {
+               if (kpiChartInstances.tracker) kpiChartInstances.tracker.destroy();
+               const labels = kpiData.value.tracker.map(u => u.name.split(' ')[0]);
+               const dataEff = kpiData.value.tracker.map(u => u.efficiency);
+               const dataVol = kpiData.value.tracker.map(u => u.volume);
+
+               kpiChartInstances.tracker = new Chart(ctxTracker, {
+                   type: 'bar',
+                   data: {
+                       labels: labels,
+                       datasets: [
+                           { label: 'Eficiencia (Días)', data: dataEff, backgroundColor: '#e74c3c', yAxisID: 'y' },
+                           { label: 'Volumen', data: dataVol, type: 'line', borderColor: '#8e44ad', tension: 0.1, yAxisID: 'y1' }
+                       ]
+                   },
+                   options: {
+                       responsive: true, maintainAspectRatio: false,
+                       scales: {
+                           y: { type: 'linear', display: true, position: 'left', title: { display:true, text: 'Días Promedio' } },
+                           y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display:true, text: 'Tareas' } }
+                       }
+                   }
+               });
+          }
       };
       
       const closeIframe = () => currentView.value='DASHBOARD';
@@ -972,7 +1122,7 @@
       const updateDateFromPicker = (e, row, h) => { const val = e.target.value; if (!val) { row[h] = ''; return; } const parts = val.split('-'); if (parts.length === 3) row[h] = `${parts[2]}/${parts[1]}/${parts[0].slice(-2)}`; };
       
       return { isLoggedIn, loginPass, loginUser, loggingIn, doLogin, logout, currentUser, currentView, config, staffTracker, weeklyPlanData, searchQuery, goHome, selectDept, openStaffTracker, reloadStaffTracker, goBackToDept, saveRow, addNewRow, openModule, filteredStaff, getTrafficStyle, ppcData, isSubmitting, selectedResponsables, staffSearch, filteredDirectory, addResponsable, promptExtraData, confirmAddToQueue, activityQueue, submitBatch, clearQueue, pageTitle, openFileDialog, handleFileSelect, fileInput, isUploadingFile, uploadSuccess, closeIframe, showExtraModal, extraData, priorityOpts, riskOpts, salesStaff, cellFileInput, openCellUpload, handleCellFile, toIsoDate, updateDateFromPicker, formatDisplayDate, isMediaColumn, getColumnStyle, getHeaderLabel, isCol, deptStats, currentDeptData, currentModuleId, currentDept, ppcExistingData, dynamicPpc, saveDynamicPPC, getFechaRespuestaStyle, syncQueueToBackend, isCompact, toggleSidebar, loadWeeklyPlan, weeklyStats, savePPCV3Row, selectedWeek, availableWeeks, filteredWeeklyData, projectCards, activeProjectsList, projectSubFolders, openFolderContent, toggleExpand, showPpcSelectorModal, openPpcProjectSelector, ppcMode, selectPpcProject, createNewProject, newProject, currentPpcProject, loadCascadeTree, showSubProjectModal, currentTargetSite, newSubProject, openAddSubProject, createSubProject, openProjectTask, projectTasks, refreshProjectTasks, addNewProjectTask, saveProjectRow, 
-      ecgData, loadEcgData, renderEcgCharts, toInitials, showPassword, availableSpecialties, filterSpecialty, filterCompliance };
+      ecgData, loadEcgData, renderEcgCharts, toInitials, showPassword, availableSpecialties, filterSpecialty, filterCompliance, kpiData, loadKPIData };
     }
   });
   app.config.errorHandler = (err) => { console.error(err); Swal.fire({ icon: 'error', title: 'Error de Renderizado', text: 'Ocurrió un error visual: ' + err.message }); };
