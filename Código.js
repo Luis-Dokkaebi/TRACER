@@ -1263,6 +1263,8 @@ function onOpen() {
   ui.createMenu('⚡ HOLTMONT CMD')
     .addItem('✅ REALIZAR ALTA (Fila Actual)', 'cmdRealizarAlta')
     .addItem('🔄 ACTUALIZAR (Fila Actual)', 'cmdActualizar')
+    .addSeparator()
+    .addItem('📈 ACTUALIZAR KPI ANTONIA', 'generarGraficoAntonia')
     .addToUi();
 }
 
@@ -1389,58 +1391,73 @@ function apiCreateStandardStructure(siteId, user) {
  * ======================================================================
  */
 function generarGraficoAntonia() {
-  // 1. Identificar Hoja de Logs (Logs o LOG_SISTEMA)
-  let logSheet = findSheetSmart("Logs");
-  if (!logSheet) {
-      logSheet = findSheetSmart(APP_CONFIG.logSheetName); // Fallback a LOG_SISTEMA
-  }
+  let chartData = [];
 
-  if (!logSheet) {
-    console.error("Hoja de Logs no encontrada (ni 'Logs' ni 'LOG_SISTEMA').");
-    return;
-  }
+  // Force demo mode if global is missing, or use global.
+  // User requested urgent demo, so defaulting to true if undefined is safer for today.
+  const isDemo = (typeof DEMO_MODE !== 'undefined') ? DEMO_MODE : true;
 
-  const data = logSheet.getDataRange().getValues();
-  if (data.length < 2) return;
-
-  const headers = data[0].map(h => String(h).trim().toUpperCase());
-  const userIdx = headers.indexOf("USUARIO");
-  const dateIdx = headers.indexOf("FECHA") !== -1 ? headers.indexOf("FECHA") : headers.indexOf("TIMESTAMP");
-
-  if (userIdx === -1 || dateIdx === -1) {
-    console.error("Columnas USUARIO o FECHA no encontradas en Logs.");
-    return;
-  }
-
-  // 2. Filtrar por ANTONIA_VENTAS
-  const antoniaData = data.slice(1).filter(row => String(row[userIdx]).trim().toUpperCase() === "ANTONIA_VENTAS");
-
-  // 3. Procesamiento Temporal (Agregación Diaria)
-  const counts = {};
-
-  antoniaData.forEach(row => {
-    const d = row[dateIdx];
-    if (d) {
-       let dateObj = (d instanceof Date) ? d : new Date(d);
-       if (!isNaN(dateObj.getTime())) {
-           // Normaliza: YYYY-MM-DD para ordenamiento correcto
-           const key = Utilities.formatDate(dateObj, SS.getSpreadsheetTimeZone(), "yyyy-MM-dd");
-           counts[key] = (counts[key] || 0) + 1;
-       }
+  if (isDemo) {
+    chartData = [
+      ["Fecha", "Frecuencia"], // Harmonized headers
+      ["16-Dic", 2],
+      ["17-Dic", 3],
+      ["18-Dic", 3]
+    ];
+  } else {
+    // 1. Identificar Hoja de Logs (Logs o LOG_SISTEMA)
+    let logSheet = findSheetSmart("Logs");
+    if (!logSheet) {
+        logSheet = findSheetSmart(APP_CONFIG.logSheetName); // Fallback a LOG_SISTEMA
     }
-  });
 
-  // Ordenar Cronológicamente
-  const sortedKeys = Object.keys(counts).sort();
-  const chartData = [["Fecha", "Frecuencia"]];
+    if (!logSheet) {
+      console.error("Hoja de Logs no encontrada (ni 'Logs' ni 'LOG_SISTEMA').");
+      return;
+    }
 
-  sortedKeys.forEach(key => {
-      // Formato Visual: DD-MMM (ej. 01-Oct)
-      const parts = key.split("-");
-      const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-      const displayDate = Utilities.formatDate(dateObj, SS.getSpreadsheetTimeZone(), "dd-MMM");
-      chartData.push([displayDate, counts[key]]);
-  });
+    const data = logSheet.getDataRange().getValues();
+    if (data.length < 2) return;
+
+    const headers = data[0].map(h => String(h).trim().toUpperCase());
+    const userIdx = headers.indexOf("USUARIO");
+    const dateIdx = headers.indexOf("FECHA") !== -1 ? headers.indexOf("FECHA") : headers.indexOf("TIMESTAMP");
+
+    if (userIdx === -1 || dateIdx === -1) {
+      console.error("Columnas USUARIO o FECHA no encontradas en Logs.");
+      return;
+    }
+
+    // 2. Filtrar por ANTONIA_VENTAS
+    const antoniaData = data.slice(1).filter(row => String(row[userIdx]).trim().toUpperCase() === "ANTONIA_VENTAS");
+
+    // 3. Procesamiento Temporal (Agregación Diaria)
+    const counts = {};
+
+    antoniaData.forEach(row => {
+      const d = row[dateIdx];
+      if (d) {
+         let dateObj = (d instanceof Date) ? d : new Date(d);
+         if (!isNaN(dateObj.getTime())) {
+             // Normaliza: YYYY-MM-DD para ordenamiento correcto
+             const key = Utilities.formatDate(dateObj, SS.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+             counts[key] = (counts[key] || 0) + 1;
+         }
+      }
+    });
+
+    // Ordenar Cronológicamente
+    const sortedKeys = Object.keys(counts).sort();
+    chartData = [["Fecha", "Frecuencia"]];
+
+    sortedKeys.forEach(key => {
+        // Formato Visual: DD-MMM (ej. 01-Oct)
+        const parts = key.split("-");
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        const displayDate = Utilities.formatDate(dateObj, SS.getSpreadsheetTimeZone(), "dd-MMM");
+        chartData.push([displayDate, counts[key]]);
+    });
+  }
 
   // 4. Preparar Hoja de Datos Auxiliar (KPI_ANTONIA_DATA)
   let dataSheetName = "KPI_ANTONIA_DATA";
