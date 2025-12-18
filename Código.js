@@ -1364,3 +1364,114 @@ function apiCreateStandardStructure(siteId, user) {
         });
     });
 }
+
+/**
+ * ======================================================================
+ * NUEVO REQUERIMIENTO: KPI DE ADOPCIÓN DE USUARIO (ANTONIA_VENTAS)
+ * ======================================================================
+ */
+function generarGraficoAntonia() {
+  // 1. Identificar Hoja de Logs (Logs o LOG_SISTEMA)
+  let logSheet = findSheetSmart("Logs");
+  if (!logSheet) {
+      logSheet = findSheetSmart(APP_CONFIG.logSheetName); // Fallback a LOG_SISTEMA
+  }
+
+  if (!logSheet) {
+    console.error("Hoja de Logs no encontrada (ni 'Logs' ni 'LOG_SISTEMA').");
+    return;
+  }
+
+  const data = logSheet.getDataRange().getValues();
+  if (data.length < 2) return;
+
+  const headers = data[0].map(h => String(h).trim().toUpperCase());
+  const userIdx = headers.indexOf("USUARIO");
+  const dateIdx = headers.indexOf("FECHA") !== -1 ? headers.indexOf("FECHA") : headers.indexOf("TIMESTAMP");
+
+  if (userIdx === -1 || dateIdx === -1) {
+    console.error("Columnas USUARIO o FECHA no encontradas en Logs.");
+    return;
+  }
+
+  // 2. Filtrar por ANTONIA_VENTAS
+  const antoniaData = data.slice(1).filter(row => String(row[userIdx]).trim().toUpperCase() === "ANTONIA_VENTAS");
+
+  // 3. Procesamiento Temporal (Agregación Diaria)
+  const counts = {};
+
+  antoniaData.forEach(row => {
+    const d = row[dateIdx];
+    if (d) {
+       let dateObj = (d instanceof Date) ? d : new Date(d);
+       if (!isNaN(dateObj.getTime())) {
+           // Normaliza: YYYY-MM-DD para ordenamiento correcto
+           const key = Utilities.formatDate(dateObj, SS.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+           counts[key] = (counts[key] || 0) + 1;
+       }
+    }
+  });
+
+  // Ordenar Cronológicamente
+  const sortedKeys = Object.keys(counts).sort();
+  const chartData = [["Fecha", "Frecuencia"]];
+
+  sortedKeys.forEach(key => {
+      // Formato Visual: DD-MMM (ej. 01-Oct)
+      const parts = key.split("-");
+      const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const displayDate = Utilities.formatDate(dateObj, SS.getSpreadsheetTimeZone(), "dd-MMM");
+      chartData.push([displayDate, counts[key]]);
+  });
+
+  // 4. Preparar Hoja de Datos Auxiliar (KPI_ANTONIA_DATA)
+  let dataSheetName = "KPI_ANTONIA_DATA";
+  let dataSheet = SS.getSheetByName(dataSheetName);
+  if (!dataSheet) {
+      dataSheet = SS.insertSheet(dataSheetName);
+      dataSheet.hideSheet(); // Ocultar para limpieza visual
+  }
+  dataSheet.clear();
+  // Escribir datos para el gráfico
+  if (chartData.length > 0) {
+      dataSheet.getRange(1, 1, chartData.length, 2).setValues(chartData);
+  }
+
+  // 5. Generar Gráfico en "KPI Performance"
+  let targetSheetName = "KPI Performance";
+  let targetSheet = SS.getSheetByName(targetSheetName);
+
+  // Si no existe, crearla (o buscar smart)
+  if (!targetSheet) {
+      targetSheet = findSheetSmart(targetSheetName);
+      if (!targetSheet) {
+          targetSheet = SS.insertSheet(targetSheetName);
+      }
+  }
+
+  // Eliminar gráfico previo si existe para evitar duplicados
+  const charts = targetSheet.getCharts();
+  const chartTitle = "Productividad de Acceso: ANTONIA_VENTAS";
+  for (let i = 0; i < charts.length; i++) {
+      if (charts[i].getOptions().get('title') === chartTitle) {
+          targetSheet.removeChart(charts[i]);
+      }
+  }
+
+  // Construir Nuevo Gráfico
+  if (chartData.length > 1) { // Header + al menos 1 dato
+      const chart = targetSheet.newChart()
+          .setChartType(Charts.ChartType.COLUMN)
+          .addRange(dataSheet.getRange(1, 1, chartData.length, 2))
+          .setPosition(2, 2, 0, 0) // Fila 2, Columna B
+          .setOption('title', chartTitle)
+          .setOption('hAxis.title', 'Días del Mes')
+          .setOption('vAxis.title', 'Cantidad de Ingresos')
+          .setOption('legend', {position: 'none'})
+          .build();
+
+      targetSheet.insertChart(chart);
+  } else {
+      console.log("No hay datos suficientes para generar el gráfico de Antonia.");
+  }
+}
