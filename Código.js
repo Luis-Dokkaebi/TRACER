@@ -1479,3 +1479,51 @@ function generarGraficoAntonia() {
       console.log("No hay datos suficientes para generar el gráfico de Antonia.");
   }
 }
+
+function apiFetchAntoniaLogs() {
+  try {
+    let logSheet = findSheetSmart("Logs");
+    if (!logSheet) logSheet = findSheetSmart(APP_CONFIG.logSheetName);
+
+    if (!logSheet) return { success: false, message: "Hoja de Logs no encontrada." };
+
+    const data = logSheet.getDataRange().getValues();
+    if (data.length < 2) return { success: true, labels: [], data: [] };
+
+    const headers = data[0].map(h => String(h).trim().toUpperCase());
+    const userIdx = headers.indexOf("USUARIO");
+    const dateIdx = headers.indexOf("FECHA") !== -1 ? headers.indexOf("FECHA") : headers.indexOf("TIMESTAMP");
+
+    if (userIdx === -1 || dateIdx === -1) return { success: false, message: "Columnas USUARIO/FECHA no encontradas." };
+
+    const counts = {};
+    data.slice(1).forEach(row => {
+      const user = String(row[userIdx]).trim().toUpperCase();
+      if (user === "ANTONIA_VENTAS") {
+        const d = row[dateIdx];
+        if (d) {
+           let dateObj = (d instanceof Date) ? d : new Date(d);
+           if (!isNaN(dateObj.getTime())) {
+               const key = Utilities.formatDate(dateObj, SS.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+               counts[key] = (counts[key] || 0) + 1;
+           }
+        }
+      }
+    });
+
+    const sortedKeys = Object.keys(counts).sort();
+    const labels = [];
+    const values = [];
+
+    sortedKeys.forEach(key => {
+        const parts = key.split("-");
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        labels.push(Utilities.formatDate(dateObj, SS.getSpreadsheetTimeZone(), "dd-MMM"));
+        values.push(counts[key]);
+    });
+
+    return { success: true, labels: labels, data: values };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
