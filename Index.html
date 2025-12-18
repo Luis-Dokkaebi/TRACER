@@ -1022,7 +1022,7 @@
               loadEcgData();
           }
           else if(m.type === 'kpi_dashboard_view') {
-              if (currentRole.value !== 'ADMIN') {
+              if (currentUsername.value !== 'LUIS_CARLOS' && currentRole.value !== 'ADMIN') {
                   Swal.fire('Acceso Denegado', 'No tienes permisos para ver este módulo.', 'error');
                   return;
               }
