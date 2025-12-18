@@ -6,150 +6,151 @@ import sys
 # --- CONFIGURATION ---
 DATA_FILE = 'mock_data.csv'
 
-# Define Teams and Members
-TEAMS = {
-    'VENTAS': ['EDUARDO MANZANARES', 'SEBASTIAN PADILLA', 'RAMIRO RODRIGUEZ'],
-    'TRACKER': ['JUDITH ECHAVARRIA', 'EDUARDO TERAN', 'ANGEL SALINAS']
-}
+# Define Teams and Members explicitly
+MEMBERS_VENTAS = ['EDUARDO MANZANARES', 'SEBASTIAN PADILLA', 'RAMIRO RODRIGUEZ']
+MEMBERS_TRACKER = ['JUDITH ECHAVARRIA', 'EDUARDO TERAN', 'ANGEL SALINAS']
 
-# Flatten the list for filtering
-ALL_MEMBERS = [member for team in TEAMS.values() for member in team]
-MEMBER_TO_TEAM = {member: team for team, members in TEAMS.items() for member in members}
-
-# Colors for visualization (Corporate/Sober)
-PALETTE = {'VENTAS': '#2c3e50', 'TRACKER': '#e74c3c'}
+# Colors
+PALETTE_VENTAS = '#2c3e50'
+PALETTE_TRACKER = '#e74c3c'
 
 def load_and_clean_data(filepath):
-    """Loads data from CSV and performs cleaning and preprocessing."""
+    """Loads data from CSV and performs basic cleaning (dates, whitespace)."""
     try:
         df = pd.read_csv(filepath)
     except FileNotFoundError:
         print(f"Error: File {filepath} not found.")
         sys.exit(1)
 
-    # Filter for specific users
+    # Standardize string columns
     df['RESPONSABLE'] = df['RESPONSABLE'].str.upper().str.strip()
-    df = df[df['RESPONSABLE'].isin(ALL_MEMBERS)].copy()
-
-    # Map Users to Teams
-    df['TEAM'] = df['RESPONSABLE'].map(MEMBER_TO_TEAM)
+    df['ESTATUS'] = df['ESTATUS'].str.upper().str.strip()
 
     # Filter for Completed Tasks
     completed_statuses = ['DONE', 'COMPLETED', 'FINALIZADO', 'TERMINADO']
-    df['ESTATUS'] = df['ESTATUS'].str.upper().str.strip()
     df = df[df['ESTATUS'].isin(completed_statuses)].copy()
 
     # Date Handling
-    # Explicitly specifying format to avoid warnings and ensure correctness
     for col in ['FECHA_INICIO', 'FECHA_FIN']:
         df[col] = pd.to_datetime(df[col], format='%d/%m/%y', errors='coerce')
 
     # Remove rows with invalid dates
     df = df.dropna(subset=['FECHA_INICIO', 'FECHA_FIN'])
 
-    return df
-
-def calculate_kpis(df):
-    """Calculates Volume and Efficiency."""
-    # Calculate Cycle Time (Days)
+    # Calculate Cycle Time
     df['CYCLE_TIME'] = (df['FECHA_FIN'] - df['FECHA_INICIO']).dt.days
 
-    # Aggregation
-    kpi_df = df.groupby(['RESPONSABLE', 'TEAM']).agg(
+    return df
+
+def get_team_dataframe(full_df, members):
+    """Filters the full dataframe for specific members."""
+    return full_df[full_df['RESPONSABLE'].isin(members)].copy()
+
+def calculate_kpis(df):
+    """Calculates aggregated KPIs for the given dataframe."""
+    if df.empty:
+        return pd.DataFrame(columns=['RESPONSABLE', 'TOTAL_TASKS', 'AVG_CYCLE_TIME'])
+
+    kpi_df = df.groupby('RESPONSABLE').agg(
         TOTAL_TASKS=('ESTATUS', 'count'),
         AVG_CYCLE_TIME=('CYCLE_TIME', 'mean')
     ).reset_index()
 
-    # Round Cycle Time for display
     kpi_df['AVG_CYCLE_TIME'] = kpi_df['AVG_CYCLE_TIME'].round(1)
-
     return kpi_df
 
-def plot_efficiency(kpi_df):
-    """Generates a bar chart for Efficiency (Avg Cycle Time)."""
-    plt.figure(figsize=(10, 6))
+def generate_team_dashboard(kpi_df, team_name, color, output_file):
+    """Generates a 2-subplot dashboard for a specific team."""
+    if kpi_df.empty:
+        print(f"Warning: No data for {team_name}, skipping dashboard.")
+        return
+
+    # Setup Figure with 2 subplots side-by-side
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig.suptitle(f'Dashboard Operativo: {team_name}', fontsize=20, fontweight='bold')
     sns.set_theme(style="whitegrid")
 
-    # Create Bar Plot
-    ax = sns.barplot(
+    # Plot 1: Efficiency (Cycle Time)
+    sns.barplot(
         data=kpi_df,
         x='RESPONSABLE',
         y='AVG_CYCLE_TIME',
-        hue='TEAM',
-        palette=PALETTE,
-        dodge=False
+        color=color,
+        ax=axes[0]
     )
+    axes[0].set_title('Eficiencia (Promedio Días / Tarea)', fontsize=14)
+    axes[0].set_xlabel('')
+    axes[0].set_ylabel('Días')
+    axes[0].tick_params(axis='x', rotation=15)
 
-    plt.title('Eficiencia por Colaborador (Cycle Time Promedio)', fontsize=16, fontweight='bold', pad=20)
-    plt.xlabel('Colaborador', fontsize=12)
-    plt.ylabel('Días Promedio', fontsize=12)
-    plt.xticks(rotation=45)
-    plt.legend(title='Área')
-
-    # Add labels on top of bars
-    for p in ax.patches:
+    # Add values to bars
+    for p in axes[0].patches:
         height = p.get_height()
-        if height > 0: # Avoid labeling empty bars
-            ax.annotate(f'{height}',
-                        (p.get_x() + p.get_width() / 2., height),
-                        ha='center', va='bottom', fontsize=10, color='black', xytext=(0, 5),
-                        textcoords='offset points')
+        if height > 0:
+            axes[0].annotate(f'{height}',
+                             (p.get_x() + p.get_width() / 2., height),
+                             ha='center', va='bottom', fontsize=11, color='black', xytext=(0, 5),
+                             textcoords='offset points')
 
-    plt.tight_layout()
-    plt.savefig('efficiency_chart.png')
-    print("Graph 1 saved: efficiency_chart.png")
-
-def plot_productivity(kpi_df):
-    """Generates a horizontal bar chart for Total Productivity."""
-    plt.figure(figsize=(10, 6))
-    sns.set_theme(style="whitegrid")
-
-    # Sort for better visualization
+    # Plot 2: Productivity (Volume)
+    # Sort by Volume for better visual
     kpi_df_sorted = kpi_df.sort_values('TOTAL_TASKS', ascending=False)
 
-    ax = sns.barplot(
+    sns.barplot(
         data=kpi_df_sorted,
-        y='RESPONSABLE',
-        x='TOTAL_TASKS',
-        hue='RESPONSABLE', # Fixed warning by assigning hue
-        legend=False,
-        palette=[PALETTE[t] for t in kpi_df_sorted['TEAM']] # Color by team
+        x='RESPONSABLE',
+        y='TOTAL_TASKS',
+        color=color,
+        ax=axes[1]
     )
+    axes[1].set_title('Productividad (Volumen de Tareas)', fontsize=14)
+    axes[1].set_xlabel('')
+    axes[1].set_ylabel('Tareas Terminadas')
+    axes[1].tick_params(axis='x', rotation=15)
 
-    plt.title('Productividad Total (Tareas Terminadas)', fontsize=16, fontweight='bold', pad=20)
-    plt.xlabel('Total Tareas', fontsize=12)
-    plt.ylabel('Colaborador', fontsize=12)
+    # Add values to bars
+    for p in axes[1].patches:
+        height = p.get_height()
+        if height > 0:
+            axes[1].annotate(f'{int(height)}',
+                             (p.get_x() + p.get_width() / 2., height),
+                             ha='center', va='bottom', fontsize=11, color='black', xytext=(0, 5),
+                             textcoords='offset points')
 
-    # Add labels
-    for p in ax.patches:
-        width = p.get_width()
-        if width > 0:
-            ax.annotate(f'{int(width)}',
-                        (width, p.get_y() + p.get_height() / 2.),
-                        ha='left', va='center', fontsize=10, color='black', xytext=(5, 0),
-                        textcoords='offset points')
-
-    plt.tight_layout()
-    plt.savefig('productivity_chart.png')
-    print("Graph 2 saved: productivity_chart.png")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95]) # Adjust for suptitle
+    plt.savefig(output_file)
+    print(f"Generated {output_file}")
+    plt.close()
 
 def main():
-    print("Starting KPI Analysis...")
-    df = load_and_clean_data(DATA_FILE)
+    print("Starting Independent Team Analysis...")
 
-    if df.empty:
-        print("No valid data found after filtering.")
-        return
+    # 1. Load Data
+    full_df = load_and_clean_data(DATA_FILE)
 
-    kpi_df = calculate_kpis(df)
+    # 2. Process Data Separately (Requirement 1)
+    df_ventas = get_team_dataframe(full_df, MEMBERS_VENTAS)
+    df_tracker = get_team_dataframe(full_df, MEMBERS_TRACKER)
 
-    print("\nCalculated KPIs:")
-    print(kpi_df)
+    # 3. Calculate KPIs Separately
+    kpi_ventas = calculate_kpis(df_ventas)
+    kpi_tracker = calculate_kpis(df_tracker)
 
-    print("\nGenerating Visualizations...")
-    plot_efficiency(kpi_df)
-    plot_productivity(kpi_df)
-    print("Done.")
+    # Print Tables (Requirement 3: First Ventas, then Tracker)
+    print("\n--- TABLA KPI: VENTAS ---")
+    print(kpi_ventas.to_string(index=False))
+
+    print("\n--- TABLA KPI: TRACKER ---")
+    print(kpi_tracker.to_string(index=False))
+
+    # 4. Generate Visualization Separately (Requirement 2)
+    # Figure A: Ventas
+    generate_team_dashboard(kpi_ventas, "VENTAS", PALETTE_VENTAS, 'dashboard_VENTAS.png')
+
+    # Figure B: Tracker
+    generate_team_dashboard(kpi_tracker, "TRACKER", PALETTE_TRACKER, 'dashboard_TRACKER.png')
+
+    print("\nAnalysis Complete.")
 
 if __name__ == "__main__":
     main()
