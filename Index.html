@@ -691,7 +691,7 @@
   const app = createApp({
     setup() {
       // ESTADO GLOBAL
-      const isLoggedIn = ref(false); const loginPass = ref(''); const loginUser = ref(''); const loggingIn = ref(false); const currentUser = ref(''); const currentUsername = ref('');
+      const isLoggedIn = ref(false); const loginPass = ref(''); const loginUser = ref(''); const loggingIn = ref(false); const currentUser = ref(''); const currentUsername = ref(''); const currentRole = ref('');
       const currentView = ref('DASHBOARD'); const currentDept = ref('');
       const config = ref({ departments: {}, staff: [], directory: [], specialModules: [] });
       const staffTracker = ref({ name: '', data: [], history: [], headers: [], isLoading: false, previousView: 'DEPT' });
@@ -924,7 +924,7 @@
       };
 
       const handleErr = (e) => { loggingIn.value=false; isSubmitting.value=false; Swal.fire('Error',e.message,'error'); };
-      const doLogin = () => { if(!loginPass.value || !loginUser.value) return; loggingIn.value=true; google.script.run.withSuccessHandler(res => { loggingIn.value=false; if(res.success){ isLoggedIn.value=true; currentUser.value=res.name; currentUsername.value = res.username; loadConfig(res.role); loadCascadeTree(); } else Swal.fire('Error',res.message,'error'); }).withFailureHandler(handleErr).apiLogin(loginUser.value, loginPass.value); };
+      const doLogin = () => { if(!loginPass.value || !loginUser.value) return; loggingIn.value=true; google.script.run.withSuccessHandler(res => { loggingIn.value=false; if(res.success){ isLoggedIn.value=true; currentUser.value=res.name; currentUsername.value = res.username; currentRole.value = res.role; loadConfig(res.role); loadCascadeTree(); } else Swal.fire('Error',res.message,'error'); }).withFailureHandler(handleErr).apiLogin(loginUser.value, loginPass.value); };
       const loadConfig = (r) => { google.script.run.withSuccessHandler(d => { config.value=d; if(r === 'PPC_ADMIN' || r === 'ADMIN_CONTROL' || r === 'ADMIN') { google.script.run.withSuccessHandler(res => { if(res.success && res.data.length > 0) { activityQueue.value = res.data; } }).apiFetchDrafts(); } }).getSystemConfig(r); };
       const toggleSidebar = () => { isCompact.value = !isCompact.value; };
       const logout = () => { isLoggedIn.value=false; loginPass.value=''; loginUser.value=''; currentView.value='DASHBOARD'; };
@@ -1022,7 +1022,7 @@
               loadEcgData();
           }
           else if(m.type === 'kpi_dashboard_view') {
-              if (currentUsername.value !== 'LUIS_CARLOS') {
+              if (currentUsername.value !== 'LUIS_CARLOS' && currentRole.value !== 'ADMIN') {
                   Swal.fire('Acceso Denegado', 'No tienes permisos para ver este módulo.', 'error');
                   return;
               }
