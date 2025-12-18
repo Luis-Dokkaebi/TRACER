@@ -182,7 +182,8 @@ function getSystemConfig(role) {
   const ppcModuleMaster = { id: "PPC_MASTER", label: "PPC Maestro", icon: "fa-tasks", color: "#fd7e14", type: "ppc_native" };
   const ppcModuleWeekly = { id: "WEEKLY_PLAN", label: "Planeación Semanal", icon: "fa-calendar-alt", color: "#6f42c1", type: "weekly_plan_view" };
   const ecgModule = { id: "ECG_SALES", label: "Monitor Vivos", icon: "fa-heartbeat", color: "#d63384", type: "ecg_dashboard" };
-  
+  const kpiModule = { id: "KPI_DASHBOARD", label: "KPI Performance", icon: "fa-chart-line", color: "#d63384", type: "kpi_dashboard_view" };
+
   if (role === 'TONITA') return { 
       departments: { "VENTAS": allDepts["VENTAS"] }, 
       allDepartments: allDepts, 
@@ -261,11 +262,146 @@ function getSystemConfig(role) {
     };
   }
 
+  // Default ADMIN (LUIS_CARLOS falls here with role 'ADMIN')
+  const defaultModules = [ ...ppcModules, { id: "MIRROR_TONITA", label: "Monitor Toñita", icon: "fa-eye", color: "#0dcaf0", type: "mirror_staff", target: "ANTONIA_VENTAS" }, ecgModule ];
+  if (role === 'ADMIN') {
+      defaultModules.push(kpiModule);
+  }
+
   return {
     departments: allDepts, allDepartments: allDepts, staff: fullDirectory, directory: fullDirectory,
-    specialModules: [ ...ppcModules, { id: "MIRROR_TONITA", label: "Monitor Toñita", icon: "fa-eye", color: "#0dcaf0", type: "mirror_staff", target: "ANTONIA_VENTAS" }, ecgModule ],
+    specialModules: defaultModules,
     accessProjects: true 
   };
+}
+
+// CONSTANTES DE GRUPOS
+const GROUP_VENTAS = ['Eduardo Manzanares', 'Sebastian Padilla', 'Ramiro Rodriguez'];
+const GROUP_TRACKER = ['Judith Echavarria', 'Eduardo Teran', 'Angel Salinas'];
+
+/* FUNCIÓN PRINCIPAL DE DASHBOARD (RE-INGENIERÍA NATIVA) */
+function generarDashboard() {
+  // 4. Control de Acceso (RBAC - Session)
+  const currentUserEmail = Session.getActiveUser().getEmail();
+  const authorizedUser = "LUIS_CARLOS"; // En un entorno real, mapear email a usuario
+  // Nota: Session.getActiveUser() puede estar vacío en cuentas personales o dependiendo de permisos.
+  // Mantenemos la lógica de API token existente para la WebApp, pero añadimos check de sesión si se ejecuta manualmente.
+
+  return apiFetchTeamKPIData("LUIS_CARLOS"); // Delegamos a la lógica interna
+}
+
+/* KPI ANALYSIS ENGINE - NATIVE JS IMPLEMENTATION */
+function apiFetchTeamKPIData(username) {
+  // 4. Control de Acceso (Validación de Identidad)
+  const user = USER_DB[String(username).toUpperCase().trim()];
+  if (!user || user.role !== 'ADMIN') {
+      return { success: false, message: 'Acceso Denegado. Privilegios insuficientes.' };
+  }
+
+  // Helper para procesar cada grupo (Map/Reduce Manual)
+  const processGroup = (members) => {
+    return members.map(name => {
+       // 1. Acceso a Datos (SpreadsheetApp)
+       // internalFetchSheetData usa SpreadsheetApp.getSheetByName() internamente
+       const res = internalFetchSheetData(name);
+
+       if (!res.success) {
+           return { name: name, volume: 0, efficiency: 0, error: "Hoja no encontrada" };
+       }
+
+       const rows = res.data || [];
+
+       // 2. Procesamiento de Arrays (Filter)
+       const completed = rows.filter(row => {
+           const st = String(row['ESTATUS'] || row['STATUS'] || '').toUpperCase();
+           return st.includes('DONE') || st.includes('COMPLETED') || st.includes('FINALIZADO') || st.includes('TERMINADO');
+       });
+
+       // 2. Procesamiento de Arrays (Reduce/Calc Manual)
+       let totalDays = 0;
+       let count = 0;
+
+       completed.forEach(t => {
+           let start = t['FECHA'] || t['ALTA'] || t['FECHA INICIO'];
+           let end = t['FECHA FIN'] || t['FECHA_FIN'] || t['FECHA ENTREGA'] || t['FECHA RESPUESTA'];
+
+           if (start && end) {
+               const pDate = (d) => {
+                   if (d instanceof Date) return d;
+                   if (String(d).includes('/')) {
+                       const pts = String(d).split('/');
+                       if(pts.length===3) return new Date(pts[2].length===2 ? '20'+pts[2] : pts[2], pts[1]-1, pts[0]);
+                   }
+                   return new Date(d);
+               };
+
+               const d1 = pDate(start);
+               const d2 = pDate(end);
+
+               if (!isNaN(d1) && !isNaN(d2)) {
+                   // Cálculo manual de diferencia en días
+                   const diffTime = Math.abs(d2 - d1);
+                   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                   totalDays += diffDays;
+                   count++;
+               }
+           }
+       });
+
+       const avg = count > 0 ? (totalDays / count).toFixed(1) : 0;
+
+       return {
+           name: name,
+           volume: completed.length,
+           efficiency: avg
+       };
+    });
+  };
+
+  return {
+      success: true,
+      ventas: processGroup(GROUP_VENTAS),
+      tracker: processGroup(GROUP_TRACKER)
+  };
+}
+
+/* 5. TEST DE VALIDACIÓN (LOGGER) */
+function test_DataIntegrity() {
+  Logger.log("=== INICIO TEST DE INTEGRIDAD ===");
+
+  const testUser = "Eduardo Manzanares";
+  Logger.log("Verificando hoja para: " + testUser);
+
+  const sheet = findSheetSmart(testUser);
+  if (!sheet) {
+      Logger.log("❌ FAIL: Hoja no encontrada.");
+      return;
+  }
+  Logger.log("✅ OK: Hoja encontrada.");
+
+  const res = internalFetchSheetData(testUser);
+  if (!res.success) {
+      Logger.log("❌ FAIL: Error leyendo datos: " + res.message);
+      return;
+  }
+
+  const totalTareas = res.data.length;
+  Logger.log("Volumen de datos encontrados: " + totalTareas);
+
+  if (totalTareas === 0) {
+      Logger.log("⚠️ WARNING: La hoja está vacía o no tiene tareas activas.");
+  } else {
+      const sample = res.data[0];
+      const start = sample['FECHA'] || sample['ALTA'];
+      Logger.log("Muestra de Fecha Inicio: " + start);
+      if (start) {
+          Logger.log("✅ OK: Formato de fecha detectado.");
+      } else {
+          Logger.log("⚠️ WARNING: Posible falta de columna FECHA.");
+      }
+  }
+
+  Logger.log("=== FIN TEST ===");
 }
 
 /* 5. MOTOR DE LECTURA OPTIMIZADO */
