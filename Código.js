@@ -1245,6 +1245,7 @@ function onOpen() {
   ui.createMenu('⚡ HOLTMONT CMD')
     .addItem('✅ REALIZAR ALTA (Fila Actual)', 'cmdRealizarAlta')
     .addItem('🔄 ACTUALIZAR (Fila Actual)', 'cmdActualizar')
+    .addItem('📊 KPI Antonia', 'generarGraficoAntonia')
     .addToUi();
 }
 
@@ -1378,6 +1379,7 @@ function generarGraficoAntonia() {
   }
 
   if (!logSheet) {
+    SpreadsheetApp.getUi().alert("❌ Error: No se encuentra la hoja de Logs.");
     console.error("Hoja de Logs no encontrada (ni 'Logs' ni 'LOG_SISTEMA').");
     return;
   }
@@ -1471,7 +1473,9 @@ function generarGraficoAntonia() {
           .build();
 
       targetSheet.insertChart(chart);
+      SS.toast("✅ Gráfico actualizado en 'KPI Performance'", "KPI Antonia");
   } else {
+      SS.toast("⚠️ No hay datos suficientes para el usuario ANTONIA_VENTAS", "KPI Antonia");
       console.log("No hay datos suficientes para generar el gráfico de Antonia.");
   }
 }
