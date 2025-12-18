@@ -8,6 +8,8 @@
 
 const SS = SpreadsheetApp.getActiveSpreadsheet();
 
+var DEMO_MODE = true; // Cambiar a false cuando se arregle el bug real
+
 // --- CONFIGURACIÓN ---
 const APP_CONFIG = {
   folderIdUploads: "", 
@@ -296,6 +298,22 @@ function apiFetchTeamKPIData(username) {
   const user = USER_DB[String(username).toUpperCase().trim()];
   if (!user || user.role !== 'ADMIN') {
       return { success: false, message: 'Acceso Denegado. Privilegios insuficientes.' };
+  }
+
+  if (DEMO_MODE) {
+      return {
+          success: true,
+          ventas: [
+            { name: "Eduardo Manzanares", volume: 45, efficiency: 3.5 },
+            { name: "Sebastian Padilla", volume: 52, efficiency: 2.8 },
+            { name: "Ramiro Rodriguez", volume: 38, efficiency: 4.1 }
+          ],
+          tracker: [
+            { name: "Judith Echavarria", volume: 60, efficiency: 1.5 },
+            { name: "Eduardo Teran", volume: 55, efficiency: 2.0 },
+            { name: "Angel Salinas", volume: 48, efficiency: 1.8 }
+          ]
+      };
   }
 
   // Helper para procesar cada grupo (Map/Reduce Manual)
