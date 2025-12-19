@@ -259,7 +259,7 @@
                 </div>
 
                 <!-- PANEL VENTAS -->
-                <div class="col-12">
+                <div class="col-md-6">
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-header bg-white border-bottom fw-bold text-uppercase" style="color:#2c3e50">
                             <i class="fas fa-hand-holding-usd me-2"></i>DASHBOARD VENTAS
@@ -285,7 +285,7 @@
                 </div>
 
                 <!-- PANEL TRACKER -->
-                <div class="col-12">
+                <div class="col-md-6">
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-header bg-white border-bottom fw-bold text-uppercase" style="color:#e74c3c">
                             <i class="fas fa-tasks me-2"></i>DASHBOARD TRACKER
@@ -1062,36 +1062,50 @@
       };
 
       const renderKPICharts = () => {
-          // ANTONIA CHART
-          const ctxAntonia = document.getElementById('kpiChartAntonia');
-          if (ctxAntonia && kpiData.value.antonia) {
+          // ANTONIA CHART (AREA / LINE)
+          const canvasAntonia = document.getElementById('kpiChartAntonia');
+          if (canvasAntonia && kpiData.value.antonia) {
+               const ctx = canvasAntonia.getContext('2d');
                if (kpiChartInstances.antonia) kpiChartInstances.antonia.destroy();
 
-               kpiChartInstances.antonia = new Chart(ctxAntonia, {
-                   type: 'bar',
+               // Gradient
+               const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+               gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)');
+               gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+               kpiChartInstances.antonia = new Chart(canvasAntonia, {
+                   type: 'line',
                    data: {
                        labels: kpiData.value.antonia.labels,
                        datasets: [{
-                           label: 'Frecuencia de Ingreso',
+                           label: 'Productividad',
                            data: kpiData.value.antonia.values,
-                           backgroundColor: '#0dcaf0'
+                           borderColor: '#3B82F6',
+                           borderWidth: 3,
+                           backgroundColor: gradient,
+                           fill: true,
+                           tension: 0.4,
+                           pointRadius: 5,
+                           pointBackgroundColor: '#3B82F6',
+                           pointBorderColor: '#fff',
+                           pointBorderWidth: 2
                        }]
                    },
                    options: {
                        responsive: true, maintainAspectRatio: false,
                        scales: {
-                           y: { beginAtZero: true, title: { display:true, text: 'Cantidad' }, ticks: { stepSize: 1 } }
-                       }
+                           y: { beginAtZero: true, title: { display:true, text: 'Tareas/Accesos' }, ticks: { stepSize: 1 } }
+                       },
+                       plugins: { legend: { display: false } }
                    }
                });
           }
 
-          // VENTAS CHART
+          // VENTAS CHART (BAR VERTICAL - SOLID)
           const ctxVentas = document.getElementById('kpiChartVentas');
           if (ctxVentas && kpiData.value.ventas.length) {
                if (kpiChartInstances.ventas) kpiChartInstances.ventas.destroy();
-               const labels = kpiData.value.ventas.map(u => u.name.split(' ')[0]); // First name only
-               const dataEff = kpiData.value.ventas.map(u => u.efficiency);
+               const labels = kpiData.value.ventas.map(u => u.name.split(' ')[0]);
                const dataVol = kpiData.value.ventas.map(u => u.volume);
 
                kpiChartInstances.ventas = new Chart(ctxVentas, {
@@ -1099,42 +1113,49 @@
                    data: {
                        labels: labels,
                        datasets: [
-                           { label: 'Eficiencia (Días)', data: dataEff, backgroundColor: '#2c3e50', yAxisID: 'y' },
-                           { label: 'Volumen', data: dataVol, type: 'line', borderColor: '#e67e22', tension: 0.1, yAxisID: 'y1' }
+                           {
+                               label: 'Volumen de Ventas',
+                               data: dataVol,
+                               backgroundColor: '#6366F1',
+                               borderRadius: 8,
+                               barPercentage: 0.6
+                           }
                        ]
                    },
                    options: {
                        responsive: true, maintainAspectRatio: false,
                        scales: {
-                           y: { type: 'linear', display: true, position: 'left', title: { display:true, text: 'Días Promedio' } },
-                           y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display:true, text: 'Tareas' } }
-                       }
+                           y: { beginAtZero: true, title: { display:true, text: 'Total Tareas' } }
+                       },
+                       plugins: { legend: { display: false } }
                    }
                });
           }
 
-          // TRACKER CHART
+          // TRACKER CHART (DOUGHNUT - COMPOSITION)
           const ctxTracker = document.getElementById('kpiChartTracker');
           if (ctxTracker && kpiData.value.tracker.length) {
                if (kpiChartInstances.tracker) kpiChartInstances.tracker.destroy();
                const labels = kpiData.value.tracker.map(u => u.name.split(' ')[0]);
-               const dataEff = kpiData.value.tracker.map(u => u.efficiency);
                const dataVol = kpiData.value.tracker.map(u => u.volume);
 
                kpiChartInstances.tracker = new Chart(ctxTracker, {
-                   type: 'bar',
+                   type: 'doughnut',
                    data: {
                        labels: labels,
-                       datasets: [
-                           { label: 'Eficiencia (Días)', data: dataEff, backgroundColor: '#e74c3c', yAxisID: 'y' },
-                           { label: 'Volumen', data: dataVol, type: 'line', borderColor: '#8e44ad', tension: 0.1, yAxisID: 'y1' }
-                       ]
+                       datasets: [{
+                           data: dataVol,
+                           backgroundColor: ['#10B981', '#34D399', '#059669', '#6EE7B7'],
+                           borderWidth: 2,
+                           borderColor: '#ffffff',
+                           hoverOffset: 4
+                       }]
                    },
                    options: {
                        responsive: true, maintainAspectRatio: false,
-                       scales: {
-                           y: { type: 'linear', display: true, position: 'left', title: { display:true, text: 'Días Promedio' } },
-                           y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display:true, text: 'Tareas' } }
+                       cutout: '70%',
+                       plugins: {
+                           legend: { display: true, position: 'bottom' }
                        }
                    }
                });
