@@ -856,11 +856,11 @@ function determineRecordRoute(currentUser, inputSource, recipientUser) {
     const recipient = String(recipientUser || "").trim();
 
     // REGLA 1 (Prioridad Máxima - Venta Directa):
-    // SI Y SOLO SI el `inputSource` es exactamente igual a "TABLA_ANTONIA_VENTAS":
-    // -> El `destinationSheet` DEBE ser: "_VENTAS".
+    // SI Y SOLO SI el `inputSource` es exactamente igual a "TABLA_ANTONIA_VENTAS" (o "TABLA DE ANTONIA"):
+    // -> El `destinationSheet` DEBE ser: Recipient + "_VENTAS".
     // Prevalece sobre cualquier otra regla (incluso si el usuario es Antonia).
-    if (source === "TABLA_ANTONIA_VENTAS") {
-        return "_VENTAS";
+    if (source === "TABLA_ANTONIA_VENTAS" || source === "TABLA DE ANTONIA") {
+        return recipient + "_VENTAS";
     }
 
     // REGLA 2 (Excepción PPC):
