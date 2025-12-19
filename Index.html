@@ -182,7 +182,7 @@
         
         <div v-if="config.specialModules.length">
             <div class="section-title">ACCIONES</div>
-            <div class="nav-item" v-for="m in config.specialModules" @click="openModule(m)" :class="{ active: currentModuleId === m.id }" :style="{ borderRight: currentModuleId === m.id ? '3px solid ' + m.color : '3px solid transparent' }">
+            <div class="nav-item" v-for="m in config.specialModules.filter(m => m.id !== 'ECG_SALES')" @click="openModule(m)" :class="{ active: currentModuleId === m.id }" :style="{ borderRight: currentModuleId === m.id ? '3px solid ' + m.color : '3px solid transparent' }">
                 <div class="nav-icon-col"><i class="fas" :class="m.icon" :style="{color: m.color}"></i></div>
                 <span class="nav-text" :style="{ color: currentModuleId === m.id ? 'white' : '#a2a3b7' }">{{m.label}}</span>
             </div>
@@ -216,7 +216,7 @@
       <div class="view-area" v-if="!['IFRAME', 'MODULE_TABS'].includes(currentView)">
         
         <div v-if="currentView === 'DASHBOARD'" class="row g-3">
-          <div class="col-md-4 col-lg-3" v-for="mod in config.specialModules" :key="mod.id">
+          <div class="col-md-4 col-lg-3" v-for="mod in config.specialModules.filter(m => m.id !== 'ECG_SALES')" :key="mod.id">
             <div class="dept-card" @click="openModule(mod)" :style="{borderTop: '4px solid '+mod.color}">
                 <i class="fas fa-2x mb-3" :class="mod.icon" :style="{color: mod.color}"></i>
                 <h6 class="fw-bold" :style="{color: mod.color}">{{mod.label}}</h6>
@@ -247,8 +247,15 @@
                 <!-- PANEL ANTONIA (NEW) -->
                 <div class="col-12" v-if="kpiData.antonia">
                     <div class="card shadow-sm border-0 h-100">
-                         <div class="card-header bg-white border-bottom fw-bold text-uppercase" style="color:#0dcaf0">
-                             <i class="fas fa-chart-bar me-2"></i>PRODUCTIVIDAD DIARIA: ANTONIA
+                         <div class="card-header" style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                            <img src="https://lh3.googleusercontent.com/d/1y6o5FyEGpkHPTPoYHJ5a3IJEpgeAdOMB"
+                                 alt="Antonia Profile"
+                                 style="width: 60px; height: 60px; border-radius: 50%; border: 3px solid #3B82F6; object-fit: cover; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+
+                            <div>
+                                <h3 style="margin: 0; color: #1F2937; font-size: 1.2rem;">ANTONIA_VENTAS</h3>
+                                <span style="font-size: 0.9rem; color: #6B7280;">Productividad de Acceso (Diciembre)</span>
+                            </div>
                          </div>
                          <div class="card-body">
                              <div style="height: 300px;">
@@ -318,36 +325,6 @@
             </div>
         </div>
 
-        <div v-if="currentView === 'ECG_VIEW'" class="h-100 d-flex flex-column" style="background-color:#000; margin:-20px; padding:20px;">
-            <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary pb-2">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-heartbeat fa-2x me-3" style="color:#d63384"></i>
-                    <h4 class="text-white m-0" style="font-family:'Share Tech Mono'">MONITOR VIVOS: SEÑAL DE VENTAS</h4>
-                </div>
-                <div>
-                    <button class="btn btn-outline-success btn-sm me-2" @click="loadEcgData"><i class="fas fa-sync-alt"></i> REFRESCAR</button>
-                    <button class="btn btn-outline-secondary btn-sm" @click="goHome">CERRAR</button>
-                </div>
-            </div>
-            
-            <div class="ecg-grid">
-                <div v-for="(data, personName) in ecgData" :key="personName" class="ecg-card">
-                    <div class="ecg-header">
-                        <div class="ecg-title d-flex align-items-center">
-                            <img :src="getAvatarUrl(personName)" class="rounded-circle me-2 border border-success" style="width: 32px; height: 32px; object-fit: cover;">
-                            {{ personName }}
-                        </div>
-                        <div class="ecg-stats">
-                            <span class="me-2 text-white">TOTAL: {{ data.length }}</span>
-                            <span class="text-success">VIVO</span>
-                        </div>
-                    </div>
-                    <div class="ecg-canvas-container">
-                        <canvas :id="'chart-'+personName.replace(/\s+/g,'')"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <div v-if="currentView === 'PROJECTS'" class="animate__animated animate__fadeIn h-100 d-flex flex-column">
           <div class="d-flex justify-content-between align-items-center mb-4">
