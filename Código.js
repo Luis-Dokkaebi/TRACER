@@ -296,9 +296,16 @@ function generarDashboard() {
 function apiFetchTeamKPIData(username) {
   // 4. Control de Acceso (Validación de Identidad)
   const user = USER_DB[String(username).toUpperCase().trim()];
-  if (!user || user.role !== 'ADMIN') {
+  // Allow ADMIN or TONITA
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'TONITA')) {
       return { success: false, message: 'Acceso Denegado. Privilegios insuficientes.' };
   }
+
+  // MOCK DATA FOR ANTONIA (Required by prompt)
+  const antoniaData = {
+      labels: ["16-Dic", "17-Dic", "18-Dic"],
+      values: [2, 3, 3]
+  };
 
   if (DEMO_MODE) {
       return {
@@ -312,7 +319,8 @@ function apiFetchTeamKPIData(username) {
             { name: "Judith Echavarria", volume: 60, efficiency: 1.5 },
             { name: "Eduardo Teran", volume: 55, efficiency: 2.0 },
             { name: "Angel Salinas", volume: 48, efficiency: 1.8 }
-          ]
+          ],
+          antonia_productivity: antoniaData
       };
   }
 
@@ -379,7 +387,8 @@ function apiFetchTeamKPIData(username) {
   return {
       success: true,
       ventas: processGroup(GROUP_VENTAS),
-      tracker: processGroup(GROUP_TRACKER)
+      tracker: processGroup(GROUP_TRACKER),
+      antonia_productivity: antoniaData
   };
 }
 

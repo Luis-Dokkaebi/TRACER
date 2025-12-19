@@ -244,6 +244,20 @@
             </div>
 
             <div v-else class="row g-4 h-100 overflow-auto">
+                <!-- PANEL ANTONIA (NEW) -->
+                <div class="col-12" v-if="kpiData.antonia">
+                    <div class="card shadow-sm border-0 h-100">
+                         <div class="card-header bg-white border-bottom fw-bold text-uppercase" style="color:#0dcaf0">
+                             <i class="fas fa-chart-bar me-2"></i>PRODUCTIVIDAD DIARIA: ANTONIA
+                         </div>
+                         <div class="card-body">
+                             <div style="height: 300px;">
+                                 <canvas id="kpiChartAntonia"></canvas>
+                             </div>
+                         </div>
+                    </div>
+                </div>
+
                 <!-- PANEL VENTAS -->
                 <div class="col-12">
                     <div class="card shadow-sm border-0 h-100">
@@ -724,8 +738,8 @@
       const ecgChartInstances = {};
 
       // KPI STATE
-      const kpiData = ref({ ventas: [], tracker: [], isLoading: false });
-      const kpiChartInstances = { ventas: null, tracker: null };
+      const kpiData = ref({ ventas: [], tracker: [], antonia: null, isLoading: false });
+      const kpiChartInstances = { ventas: null, tracker: null, antonia: null };
 
       // --- GESTIÓN DE PROYECTOS (V138 - CASCADA) ---
       const showPpcSelectorModal = ref(false);
@@ -1022,7 +1036,8 @@
               loadEcgData();
           }
           else if(m.type === 'kpi_dashboard_view') {
-              if (currentUsername.value !== 'LUIS_CARLOS' && currentRole.value !== 'ADMIN') {
+              // Allow TONITA to also see dashboard (mock data)
+              if (currentUsername.value !== 'LUIS_CARLOS' && currentRole.value !== 'ADMIN' && currentRole.value !== 'TONITA') {
                   Swal.fire('Acceso Denegado', 'No tienes permisos para ver este módulo.', 'error');
                   return;
               }
@@ -1038,6 +1053,7 @@
               if (res.success) {
                   kpiData.value.ventas = res.ventas;
                   kpiData.value.tracker = res.tracker;
+                  kpiData.value.antonia = res.antonia_productivity;
                   nextTick(() => { renderKPICharts(); });
               } else {
                   Swal.fire('Error', res.message || 'No se pudieron cargar los KPIs.', 'error');
@@ -1046,6 +1062,30 @@
       };
 
       const renderKPICharts = () => {
+          // ANTONIA CHART
+          const ctxAntonia = document.getElementById('kpiChartAntonia');
+          if (ctxAntonia && kpiData.value.antonia) {
+               if (kpiChartInstances.antonia) kpiChartInstances.antonia.destroy();
+
+               kpiChartInstances.antonia = new Chart(ctxAntonia, {
+                   type: 'bar',
+                   data: {
+                       labels: kpiData.value.antonia.labels,
+                       datasets: [{
+                           label: 'Frecuencia de Ingreso',
+                           data: kpiData.value.antonia.values,
+                           backgroundColor: '#0dcaf0'
+                       }]
+                   },
+                   options: {
+                       responsive: true, maintainAspectRatio: false,
+                       scales: {
+                           y: { beginAtZero: true, title: { display:true, text: 'Cantidad' }, ticks: { stepSize: 1 } }
+                       }
+                   }
+               });
+          }
+
           // VENTAS CHART
           const ctxVentas = document.getElementById('kpiChartVentas');
           if (ctxVentas && kpiData.value.ventas.length) {
