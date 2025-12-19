@@ -841,6 +841,47 @@ function apiClearDrafts() {
   } catch(e) { return { success: false }; }
 }
 
+/**
+ * Lógica de Enrutamiento de Registros (Business Logic)
+ * Determina la hoja de destino correcta basándose en las Reglas de Negocio.
+ *
+ * @param {string} currentUser - Usuario que ejecuta la acción (ej. "ANTONIA_VENTAS")
+ * @param {string} inputSource - Fuente de datos (ej. "TABLA_ANTONIA_VENTAS", "PPC")
+ * @param {string} recipientUser - Usuario destino/asignado (ej. "JUAN_PEREZ")
+ * @return {string} - Nombre de la hoja de destino ("_VENTAS", nombre del usuario, etc.)
+ */
+function determineRecordRoute(currentUser, inputSource, recipientUser) {
+    const curUser = String(currentUser || "").toUpperCase().trim();
+    const source = String(inputSource || "").toUpperCase().trim();
+    const recipient = String(recipientUser || "").trim();
+
+    // REGLA 1 (Prioridad Máxima - Venta Directa):
+    // SI Y SOLO SI el `inputSource` es exactamente igual a "TABLA_ANTONIA_VENTAS":
+    // -> El `destinationSheet` DEBE ser: "_VENTAS".
+    // Prevalece sobre cualquier otra regla (incluso si el usuario es Antonia).
+    if (source === "TABLA_ANTONIA_VENTAS") {
+        return "_VENTAS";
+    }
+
+    // REGLA 2 (Excepción PPC):
+    // SI el `currentUser` es "ANTONIA_VENTAS" Y el `inputSource` es "PPC":
+    // -> El `destinationSheet` DEBE ser: La hoja default (tracker) del `recipientUser`.
+    if (curUser === "ANTONIA_VENTAS" && source === "PPC") {
+        return recipient;
+    }
+
+    // REGLA 3 (Default):
+    // Si no se cumplen las anteriores, la ruta por defecto es la hoja del usuario asignado.
+    // Esto cubre el flujo estándar donde se asigna una tarea a alguien y va a su hoja.
+    if (recipient) {
+        return recipient;
+    }
+
+    // Fallback de error si no hay destinatario
+    console.error("Error de Enrutamiento: No se pudo determinar destino para", currentUser, inputSource);
+    return null;
+}
+
 function apiSavePPCData(payload) {
   const lock = LockService.getScriptLock();
   if (lock.tryLock(20000)) { 
