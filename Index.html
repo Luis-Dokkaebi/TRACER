@@ -270,7 +270,10 @@
                                     <thead class="table-light"><tr><th>Colaborador</th><th class="text-center">Volumen</th><th class="text-center">Eficiencia (Días)</th></tr></thead>
                                     <tbody>
                                         <tr v-for="user in kpiData.ventas" :key="user.name">
-                                            <td class="fw-bold">{{ user.name }}</td>
+                                            <td class="fw-bold d-flex align-items-center">
+                                                <img :src="getAvatarUrl(user.name)" class="rounded-circle me-2 shadow-sm" style="width: 24px; height: 24px; object-fit: cover; border: 1px solid #dee2e6;">
+                                                {{ user.name }}
+                                            </td>
                                             <td class="text-center">{{ user.volume }}</td>
                                             <td class="text-center text-primary fw-bold">{{ user.efficiency }}</td>
                                         </tr>
@@ -296,7 +299,10 @@
                                     <thead class="table-light"><tr><th>Colaborador</th><th class="text-center">Volumen</th><th class="text-center">Eficiencia (Días)</th></tr></thead>
                                     <tbody>
                                         <tr v-for="user in kpiData.tracker" :key="user.name">
-                                            <td class="fw-bold">{{ user.name }}</td>
+                                            <td class="fw-bold d-flex align-items-center">
+                                                <img :src="getAvatarUrl(user.name)" class="rounded-circle me-2 shadow-sm" style="width: 24px; height: 24px; object-fit: cover; border: 1px solid #dee2e6;">
+                                                {{ user.name }}
+                                            </td>
                                             <td class="text-center">{{ user.volume }}</td>
                                             <td class="text-center text-danger fw-bold">{{ user.efficiency }}</td>
                                         </tr>
@@ -327,7 +333,10 @@
             <div class="ecg-grid">
                 <div v-for="(data, personName) in ecgData" :key="personName" class="ecg-card">
                     <div class="ecg-header">
-                        <div class="ecg-title">{{ personName }}</div>
+                        <div class="ecg-title d-flex align-items-center">
+                            <img :src="getAvatarUrl(personName)" class="rounded-circle me-2 border border-success" style="width: 32px; height: 32px; object-fit: cover;">
+                            {{ personName }}
+                        </div>
                         <div class="ecg-stats">
                             <span class="me-2 text-white">TOTAL: {{ data.length }}</span>
                             <span class="text-success">VIVO</span>
@@ -437,7 +446,9 @@
           <div class="row g-2">
             <div class="col-md-3" v-for="p in filteredStaff" :key="p.name">
               <div class="staff-card h-100" @click="openStaffTracker(p)" :style="{borderTop: '4px solid ' + (currentDeptData.color || '#3699ff')}">
-                <div class="mb-2 fw-bold" :style="{color: currentDeptData.color || '#555'}" style="font-size:1.2rem">{{p.name.charAt(0)}}</div>
+                <div class="mb-2 d-flex justify-content-center">
+                    <img :src="getAvatarUrl(p.name)" class="rounded-circle shadow" style="width: 60px; height: 60px; object-fit: cover; border: 2px solid white;">
+                </div>
                 <div class="small fw-bold">{{p.name}}</div>
               </div>
             </div>
@@ -583,7 +594,7 @@
              <div class="row g-3">
                  <div class="col-md-6"><label class="dynamic-label">Especialidad (Departamento)</label><select v-model="dynamicPpc.especialidad" class="dynamic-input"><option value="" disabled>Seleccionar...</option><option v-for="(d,k) in (config.allDepartments || config.departments)" :key="k" :value="k">{{d.label}}</option></select></div>
                  <div class="col-md-6"><label class="dynamic-label">Clasificación</label><select v-model="dynamicPpc.clasificacion" class="dynamic-input"><option value="A">A</option><option value="AA">AA</option><option value="AAA">AAA</option></select></div>
-                 <div class="col-12"><label class="dynamic-label">Responsable</label><div class="dynamic-input" style="min-height:38px; display:flex; flex-wrap:wrap; gap:5px; align-items:center;" @click="$refs.chipDyn.focus()"><span v-for="(u,i) in selectedResponsables" :key="i" class="user-chip">{{u}} <i class="fas fa-times ms-2 text-secondary" style="cursor:pointer" @click.stop="selectedResponsables.splice(i,1)"></i></span><input ref="chipDyn" v-model="staffSearch" style="background:transparent; border:none; color:#333; outline:none; min-width:60px;" placeholder="+"></div><ul class="list-group position-absolute shadow" style="z-index:100; max-height:150px; overflow:auto; width:300px; margin-top:5px;" v-if="staffSearch"><li v-for="p in filteredDirectory" :key="p.name" class="list-group-item list-group-item-action small py-1" style="cursor:pointer;" @click="addResponsable(p.name)">{{p.name}}</li></ul></div>
+                 <div class="col-12"><label class="dynamic-label">Responsable</label><div class="dynamic-input" style="min-height:38px; display:flex; flex-wrap:wrap; gap:5px; align-items:center;" @click="$refs.chipDyn.focus()"><span v-for="(u,i) in selectedResponsables" :key="i" class="user-chip"><img :src="getAvatarUrl(u)" class="rounded-circle me-1" style="width:16px;height:16px;object-fit:cover;">{{u}} <i class="fas fa-times ms-2 text-secondary" style="cursor:pointer" @click.stop="selectedResponsables.splice(i,1)"></i></span><input ref="chipDyn" v-model="staffSearch" style="background:transparent; border:none; color:#333; outline:none; min-width:60px;" placeholder="+"></div><ul class="list-group position-absolute shadow" style="z-index:100; max-height:150px; overflow:auto; width:300px; margin-top:5px;" v-if="staffSearch"><li v-for="p in filteredDirectory" :key="p.name" class="list-group-item list-group-item-action small py-1" style="cursor:pointer;" @click="addResponsable(p.name)">{{p.name}}</li></ul></div>
                  <div class="col-12"><label class="dynamic-label">Descripción</label><textarea v-model="dynamicPpc.concepto" class="dynamic-input" rows="3"></textarea></div>
                  <div class="col-md-6"><label class="dynamic-label">Riesgos</label><div><span v-for="r in ['BAJO','MEDIO','ALTO','CATASTROFICO']" :key="r" class="chip-option" :class="{selected: dynamicPpc.riesgos === r}" @click="dynamicPpc.riesgos = r">{{r}}</span></div></div>
                  <div class="col-md-6"><label class="dynamic-label">Prioridad</label><div><span v-for="p in ['BAJA','MEDIA','URGENTE']" :key="p" class="chip-option" :class="{selected: dynamicPpc.prioridad === p}" @click="dynamicPpc.prioridad = p">{{p}}</span></div></div>
@@ -700,6 +711,26 @@
 
 <script>
   window.onerror = function(msg, url, line) { if(String(msg).toLowerCase().includes("script error")) return; Swal.fire({ icon: 'error', title: 'Error de Renderizado', text: 'Ocurrió un error visual: ' + err.message }); };
+
+  // --- DATA MAPPING: AVATARS ---
+  const AVATAR_MAP = {
+    "ANTONIA_VENTAS": "https://lh3.googleusercontent.com/d/1y6o5FyEGpkHPTPoYHJ5a3IJEpgeAdOMB",
+    "EDUARDO TERAN": "https://lh3.googleusercontent.com/d/1RlUv7Z2LFeiaAqkm859Khg0gfIWWipJq",
+    "RAMIRO RODRIGUEZ": "https://lh3.googleusercontent.com/d/1EjsGgw5c7efDgr76f3ZJ_GBgfpiBe71F",
+    "JUDITH ECHAVARRIA": "https://lh3.googleusercontent.com/d/1FOAsKoz3jzi1Fl5-Agh1OcmdB_NjxN2l",
+    "SEBASTIAN PADILLA": "https://lh3.googleusercontent.com/d/15je2SNtrYP32WPLD7uxUFIcrhdv4owyO"
+  };
+
+  const DEFAULT_AVATAR = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+
+  function getAvatarUrl(nombre) {
+    if (!nombre) return DEFAULT_AVATAR;
+    const key = String(nombre).toUpperCase().trim();
+    // Intenta match exacto o si la clave está contenida
+    if (AVATAR_MAP[key]) return AVATAR_MAP[key];
+    // Retorna el avatar mapeado si existe, sino el default
+    return AVATAR_MAP[key] ? AVATAR_MAP[key] : DEFAULT_AVATAR;
+  }
 
   const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
   const app = createApp({
@@ -1183,7 +1214,7 @@
       const updateDateFromPicker = (e, row, h) => { const val = e.target.value; if (!val) { row[h] = ''; return; } const parts = val.split('-'); if (parts.length === 3) row[h] = `${parts[2]}/${parts[1]}/${parts[0].slice(-2)}`; };
       
       return { isLoggedIn, loginPass, loginUser, loggingIn, doLogin, logout, currentUser, currentView, config, staffTracker, weeklyPlanData, searchQuery, goHome, selectDept, openStaffTracker, reloadStaffTracker, goBackToDept, saveRow, addNewRow, openModule, filteredStaff, getTrafficStyle, ppcData, isSubmitting, selectedResponsables, staffSearch, filteredDirectory, addResponsable, promptExtraData, confirmAddToQueue, activityQueue, submitBatch, clearQueue, pageTitle, openFileDialog, handleFileSelect, fileInput, isUploadingFile, uploadSuccess, closeIframe, showExtraModal, extraData, priorityOpts, riskOpts, salesStaff, cellFileInput, openCellUpload, handleCellFile, toIsoDate, updateDateFromPicker, formatDisplayDate, isMediaColumn, getColumnStyle, getHeaderLabel, isCol, deptStats, currentDeptData, currentModuleId, currentDept, ppcExistingData, dynamicPpc, saveDynamicPPC, getFechaRespuestaStyle, syncQueueToBackend, isCompact, toggleSidebar, loadWeeklyPlan, weeklyStats, savePPCV3Row, selectedWeek, availableWeeks, filteredWeeklyData, projectCards, activeProjectsList, projectSubFolders, openFolderContent, toggleExpand, showPpcSelectorModal, openPpcProjectSelector, ppcMode, selectPpcProject, createNewProject, newProject, currentPpcProject, loadCascadeTree, showSubProjectModal, currentTargetSite, newSubProject, openAddSubProject, createSubProject, openProjectTask, projectTasks, refreshProjectTasks, addNewProjectTask, saveProjectRow, 
-      ecgData, loadEcgData, renderEcgCharts, toInitials, showPassword, availableSpecialties, filterSpecialty, filterCompliance, kpiData, loadKPIData };
+      ecgData, loadEcgData, renderEcgCharts, toInitials, showPassword, availableSpecialties, filterSpecialty, filterCompliance, kpiData, loadKPIData, getAvatarUrl };
     }
   });
   app.config.errorHandler = (err) => { console.error(err); Swal.fire({ icon: 'error', title: 'Error de Renderizado', text: 'Ocurrió un error visual: ' + err.message }); };
