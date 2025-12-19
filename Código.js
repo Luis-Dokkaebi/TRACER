@@ -45,8 +45,7 @@ const USER_DB = {
   "ANGEL_SALINAS":    { pass: "angel2025", role: "ANGEL_USER", label: "Angel Salinas" },
   "TERESA_GARZA":     { pass: "tere2025",  role: "TERESA_USER", label: "Teresa Garza" },
   "EDUARDO_TERAN":    { pass: "lalo2025",  role: "EDUARDO_USER", label: "Eduardo Teran" },
-  "RAMIRO_RODRIGUEZ": { pass: "ramiro2025", role: "RAMIRO_USER", label: "Ramiro Rodriguez" },
-  "SUPPORT_ADMIN":    { pass: "soporte2025", role: "SUPPORT_ADMIN", label: "Soporte Técnico" }
+  "RAMIRO_RODRIGUEZ": { pass: "ramiro2025", role: "RAMIRO_USER", label: "Ramiro Rodriguez" }
 };
 
 /* SERVICIO HTML */
@@ -186,17 +185,6 @@ function getSystemConfig(role) {
   const ppcModuleWeekly = { id: "WEEKLY_PLAN", label: "Planeación Semanal", icon: "fa-calendar-alt", color: "#6f42c1", type: "weekly_plan_view" };
   const ecgModule = { id: "ECG_SALES", label: "Monitor Vivos", icon: "fa-heartbeat", color: "#d63384", type: "ecg_dashboard" };
   const kpiModule = { id: "KPI_DASHBOARD", label: "KPI Performance", icon: "fa-chart-line", color: "#d63384", type: "kpi_dashboard_view" };
-
-  if (role === 'SUPPORT_ADMIN') {
-    return {
-      departments: allDepts, allDepartments: allDepts, staff: fullDirectory, directory: fullDirectory,
-      specialModules: [
-        { id: "SUPPORT_DASHBOARD", label: "Supervisión General", icon: "fa-binoculars", color: "#6f42c1", type: "support_dashboard_view" },
-        ppcModuleMaster, ppcModuleWeekly
-      ],
-      accessProjects: true
-    };
-  }
 
   if (role === 'TONITA') return { 
       departments: { "VENTAS": allDepts["VENTAS"] }, 
@@ -523,7 +511,6 @@ function apiFetchSalesHistory() {
         const descKey = Object.keys(row).find(k => k.toUpperCase().includes("CONCEPTO"));
         const statusKey = Object.keys(row).find(k => k.toUpperCase().includes("ESTATUS"));
         const dateKey = Object.keys(row).find(k => k.toUpperCase().includes("FECHA"));
-        const montoKey = Object.keys(row).find(k => k.toUpperCase().includes("IMPORTE") || k.toUpperCase().includes("MONTO") || k.toUpperCase().includes("PRECIO") || k.toUpperCase().includes("VALOR"));
 
         if (vendedorKey && row[vendedorKey]) {
             const name = String(row[vendedorKey]).trim().toUpperCase();
@@ -541,7 +528,6 @@ function apiFetchSalesHistory() {
                 desc: row[descKey] || "",
                 status: status,
                 date: row[dateKey] || "",
-                amount: montoKey ? row[montoKey] : 0,
                 pulse: pulse,
                 displayDate: row[dateKey] ? String(row[dateKey]).substring(0,5) : ""
             });
@@ -1531,117 +1517,5 @@ function generarGraficoAntonia() {
       targetSheet.insertChart(chart);
   } else {
       console.log("No hay datos suficientes para generar el gráfico de Antonia.");
-  }
-}
-
-/*
- * API: Obtener Datos para Dashboard de Soporte
- * Retorna: Proyectos planos, Cargas de trabajo, y Auditoría
- */
-function apiFetchSupportDashboardData() {
-  try {
-    // 1. Proyectos y Sitios
-    const treeRes = apiFetchCascadeTree();
-    const projectsTree = treeRes.success ? treeRes.data : [];
-
-    // 2. Estimaciones (Datos de Ventas)
-    const salesRes = apiFetchSalesHistory();
-    const salesMap = {};
-    if (salesRes.success) {
-        Object.values(salesRes.data).flat().forEach(sale => {
-            const client = String(sale.client).toUpperCase().trim();
-            if (!salesMap[client]) salesMap[client] = [];
-            salesMap[client].push(sale);
-        });
-    }
-
-    // 3. Carga de Trabajo (Workload)
-    const workload = [];
-    const staffList = [
-        "ANTONIA_VENTAS", "JUDITH ECHAVARRIA", "EDUARDO MANZANARES", "RAMIRO RODRIGUEZ", "SEBASTIAN PADILLA",
-        "ANGEL SALINAS", "TERESA GARZA", "EDUARDO TERAN", "MIGUEL GALLARDO"
-    ];
-
-    staffList.forEach(name => {
-        const res = internalFetchSheetData(name);
-        if (res.success) {
-            workload.push({
-                name: name,
-                activeCount: res.data.length,
-                historyCount: res.history.length
-            });
-        }
-    });
-
-    // 4. Aplanar Proyectos para Tabla Maestra
-    const masterList = [];
-
-    const findEconomicEst = (clientName) => {
-        const sales = salesMap[String(clientName).toUpperCase().trim()];
-        if (!sales || sales.length === 0) return { amount: '-', detail: 'Sin Ventas' };
-        // Sumar montos si es numérico, sino contar
-        let total = 0;
-        let hasMonto = false;
-        sales.forEach(s => {
-             let val = parseFloat(String(s.amount).replace(/[^0-9.-]+/g,""));
-             if (!isNaN(val)) { total += val; hasMonto = true; }
-        });
-        if (hasMonto) return { amount: '$' + total.toLocaleString(), detail: sales.length + ' Reg.' };
-        return { amount: '-', detail: sales.length + ' Ventas (S/M)' };
-    };
-
-    projectsTree.forEach(site => {
-        // Datos económicos
-        const eco = findEconomicEst(site.client);
-
-        masterList.push({
-            type: 'SITIO',
-            id: site.id,
-            name: site.name,
-            client: site.client,
-            status: site.status,
-            economic: eco.amount,
-            economicDetail: eco.detail,
-            temporal: site.createdAt,
-            assigned: site.createdBy || "Admin",
-            parentId: ''
-        });
-
-        site.subProjects.forEach(sub => {
-            masterList.push({
-                type: 'SUBPROYECTO',
-                id: sub.id,
-                name: sub.name,
-                client: site.client,
-                status: sub.status,
-                economic: '-', // Heredado o especifico?
-                economicDetail: '-',
-                temporal: '-',
-                assigned: '-', // Podriamos buscar en DB_PROYECTOS si guardamos 'CREADO_POR'
-                parentId: site.id,
-                parentName: site.name
-            });
-        });
-    });
-
-    // 5. Auditoría (Simulada con LOGS)
-    const auditLogs = [];
-    const logSheet = findSheetSmart(APP_CONFIG.logSheetName);
-    if (logSheet) {
-        const logs = logSheet.getDataRange().getValues().slice(-50).reverse(); // Últimos 50
-        logs.forEach(row => {
-            if (row[0]) auditLogs.push({ date: row[0], user: row[1], action: row[2], details: row[3] });
-        });
-    }
-
-    return {
-        success: true,
-        projects: masterList,
-        workload: workload,
-        audit: auditLogs
-    };
-
-  } catch (e) {
-      return { success: false, message: e.toString() };
   }
 }

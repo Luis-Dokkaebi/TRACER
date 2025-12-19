@@ -340,153 +340,6 @@
             </div>
         </div>
 
-        <div v-if="currentView === 'SUPPORT_DASHBOARD'" class="h-100 d-flex flex-column" style="background-color:#f4f6f9; padding:20px;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h4 class="fw-bold m-0" style="color:#343a40"><i class="fas fa-binoculars me-2 text-primary"></i>SUPERVISIÓN GENERAL - SOPORTE</h4>
-                <div>
-                   <button class="btn btn-outline-primary btn-sm me-2" @click="loadSupportData"><i class="fas fa-sync-alt"></i> ACTUALIZAR</button>
-                   <button class="btn btn-secondary btn-sm" @click="goHome">CERRAR</button>
-                </div>
-            </div>
-
-            <!-- TABS SUPERIORES -->
-            <ul class="nav nav-pills mb-3">
-                <li class="nav-item">
-                    <a class="nav-link" :class="{active: supportDashboardTab === 'MASTER'}" href="#" @click.prevent="supportDashboardTab='MASTER'">
-                        <i class="fas fa-table me-2"></i>TABLA MAESTRA
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{active: supportDashboardTab === 'WORKLOAD'}" href="#" @click.prevent="supportDashboardTab='WORKLOAD'">
-                        <i class="fas fa-users-cog me-2"></i>ASIGNACIÓN Y CARGA
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" :class="{active: supportDashboardTab === 'AUDIT'}" href="#" @click.prevent="supportDashboardTab='AUDIT'">
-                        <i class="fas fa-history me-2"></i>AUDITORÍA
-                    </a>
-                </li>
-            </ul>
-
-            <div v-if="supportData.isLoading" class="d-flex justify-content-center align-items-center flex-fill">
-                <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div>
-            </div>
-
-            <div v-else class="flex-fill d-flex flex-column overflow-hidden bg-white shadow-sm rounded border">
-
-                <!-- VISTA 1: TABLA MAESTRA -->
-                <div v-if="supportDashboardTab === 'MASTER'" class="d-flex flex-column h-100">
-                    <div class="p-2 border-bottom d-flex gap-2 align-items-center bg-light">
-                        <input v-model="supportSearch" class="form-control form-control-sm" style="max-width:200px;" placeholder="Buscar (Nombre, Cliente, $$)...">
-                        <select v-model="supportFilterStatus" class="form-select form-select-sm" style="max-width:150px;">
-                            <option value="">ESTADO: TODOS</option>
-                            <option value="ACTIVO">ACTIVO</option>
-                            <option value="PAUSADO">PAUSADO</option>
-                            <option value="FINALIZADO">FINALIZADO</option>
-                        </select>
-                        <select v-model="supportFilterUser" class="form-select form-select-sm" style="max-width:150px;">
-                            <option value="">RESPONSABLE: TODOS</option>
-                            <option v-for="u in uniqueSupportUsers" :key="u" :value="u">{{u}}</option>
-                        </select>
-                        <span class="ms-auto small text-muted">Total: {{ filteredSupportProjects.length }}</span>
-                    </div>
-                    <div class="excel-container flex-fill border-0">
-                        <table class="table-excel">
-                            <thead class="bg-light">
-                                <tr>
-                                    <th style="width:250px">PROYECTO / SITIO</th>
-                                    <th style="width:150px">CLIENTE</th>
-                                    <th style="width:100px">ESTATUS</th>
-                                    <th style="width:120px">EST. ECONÓMICA</th>
-                                    <th style="width:120px">DETALLE ECO.</th>
-                                    <th style="width:100px">CREADO</th>
-                                    <th style="width:120px">ASIGNADO A</th>
-                                    <th style="width:50px">ACC</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="p in filteredSupportProjects" :key="p.id + p.name" :class="{'bg-light': p.type==='SITIO'}">
-                                    <td class="px-2">
-                                        <div :style="{marginLeft: p.type === 'SUBPROYECTO' ? '20px' : '0px', fontWeight: p.type === 'SITIO' ? 'bold' : 'normal'}">
-                                            <i class="fas" :class="p.type === 'SITIO' ? 'fa-building text-primary' : 'fa-angle-right text-muted'"></i>
-                                            {{ p.name }}
-                                        </div>
-                                    </td>
-                                    <td class="px-2">{{ p.client }}</td>
-                                    <td class="text-center">
-                                        <span class="badge" :class="p.status === 'ACTIVO' ? 'bg-success' : 'bg-secondary'">{{ p.status }}</span>
-                                    </td>
-                                    <td class="text-end px-2 font-monospace">{{ p.economic }}</td>
-                                    <td class="text-end px-2 small text-muted">{{ p.economicDetail }}</td>
-                                    <td class="text-center small">{{ p.temporal }}</td>
-                                    <td class="text-center small">{{ p.assigned }}</td>
-                                    <td class="text-center">
-                                        <button class="btn btn-sm btn-light border py-0" @click="showProjectAudit(p)" title="Ver Historial"><i class="fas fa-eye"></i></button>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- VISTA 2: WORKLOAD -->
-                <div v-if="supportDashboardTab === 'WORKLOAD'" class="p-4 overflow-auto h-100">
-                    <h5 class="mb-3 text-secondary">Supervisión de Asignación (Cuellos de Botella)</h5>
-                    <div class="row g-3">
-                        <div class="col-md-6 col-lg-4" v-for="user in supportData.workload" :key="user.name">
-                            <div class="card h-100 shadow-sm border-0">
-                                <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h6 class="fw-bold m-0 text-primary">{{ user.name }}</h6>
-                                        <i class="fas fa-user-circle fa-2x text-muted"></i>
-                                    </div>
-                                    <div class="d-flex justify-content-between text-center">
-                                        <div class="flex-fill border-end">
-                                            <h3 class="fw-bold m-0" :class="user.activeCount > 15 ? 'text-danger' : 'text-dark'">{{ user.activeCount }}</h3>
-                                            <small class="text-muted text-uppercase" style="font-size:10px">Activas</small>
-                                        </div>
-                                        <div class="flex-fill">
-                                            <h3 class="fw-bold m-0 text-success">{{ user.historyCount }}</h3>
-                                            <small class="text-muted text-uppercase" style="font-size:10px">Finalizadas</small>
-                                        </div>
-                                    </div>
-                                    <div class="mt-3" v-if="user.activeCount > 15">
-                                        <div class="alert alert-warning py-1 px-2 small m-0"><i class="fas fa-exclamation-triangle me-1"></i> Posible saturación</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- VISTA 3: AUDIT -->
-                <div v-if="supportDashboardTab === 'AUDIT'" class="d-flex flex-column h-100">
-                    <div class="p-2 bg-light border-bottom fw-bold text-secondary">Últimos movimientos del sistema</div>
-                    <div class="excel-container flex-fill border-0">
-                        <table class="table table-striped table-hover small m-0">
-                            <thead>
-                                <tr>
-                                    <th>FECHA</th>
-                                    <th>USUARIO</th>
-                                    <th>ACCIÓN</th>
-                                    <th>DETALLES</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="(log, idx) in supportData.audit" :key="idx">
-                                    <td style="white-space:nowrap">{{ log.date }}</td>
-                                    <td class="fw-bold">{{ log.user }}</td>
-                                    <td><span class="badge bg-light text-dark border">{{ log.action }}</span></td>
-                                    <td>{{ log.details }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
         <div v-if="currentView === 'PROJECTS'" class="animate__animated animate__fadeIn h-100 d-flex flex-column">
           <div class="d-flex justify-content-between align-items-center mb-4">
               <div class="d-flex align-items-center">
@@ -888,84 +741,6 @@
       const kpiData = ref({ ventas: [], tracker: [], antonia: null, isLoading: false });
       const kpiChartInstances = { ventas: null, tracker: null, antonia: null };
 
-      // SOPORTE DASHBOARD
-      const supportData = ref({ projects: [], workload: [], audit: [], isLoading: false });
-      const supportDashboardTab = ref('MASTER');
-      const supportSearch = ref('');
-      const supportFilterStatus = ref('');
-      const supportFilterUser = ref('');
-
-      const loadSupportData = () => {
-          supportData.value.isLoading = true;
-          google.script.run.withSuccessHandler(res => {
-              supportData.value.isLoading = false;
-              if (res.success) {
-                  supportData.value.projects = res.projects;
-                  supportData.value.workload = res.workload;
-                  supportData.value.audit = res.audit;
-              } else {
-                  Swal.fire('Error', res.message, 'error');
-              }
-          }).apiFetchSupportDashboardData();
-      };
-
-      const uniqueSupportUsers = computed(() => {
-          const users = supportData.value.projects.map(p => p.assigned).filter(Boolean);
-          return [...new Set(users)].sort();
-      });
-
-      const filteredSupportProjects = computed(() => {
-          let list = supportData.value.projects;
-          if (supportSearch.value) {
-              const q = supportSearch.value.toUpperCase();
-              list = list.filter(p =>
-                  p.name.toUpperCase().includes(q) ||
-                  p.client.toUpperCase().includes(q) ||
-                  p.economic.toUpperCase().includes(q) ||
-                  p.assigned.toUpperCase().includes(q)
-              );
-          }
-          if (supportFilterStatus.value) {
-              list = list.filter(p => p.status === supportFilterStatus.value);
-          }
-          if (supportFilterUser.value) {
-              list = list.filter(p => p.assigned === supportFilterUser.value);
-          }
-          return list;
-      });
-
-      const showProjectAudit = (p) => {
-          // Filtramos el log global para buscar menciones del proyecto
-          const relatedLogs = supportData.value.audit.filter(l =>
-              l.details.toUpperCase().includes(p.name.toUpperCase()) ||
-              l.details.toUpperCase().includes(p.id.toUpperCase())
-          );
-
-          let logHtml = '';
-          if (relatedLogs.length > 0) {
-              logHtml = `<div class="mt-3 text-start bg-light p-2 rounded" style="max-height:150px; overflow:auto;">
-                            <small class="fw-bold text-secondary d-block mb-1">MOVIMIENTOS DETECTADOS:</small>
-                            <ul class="list-unstyled m-0 small">
-                              ${relatedLogs.map(l => `<li class="border-bottom py-1"><strong>${l.date.substring(0,10)}</strong>: ${l.action} - ${l.user}</li>`).join('')}
-                            </ul>
-                         </div>`;
-          } else {
-              logHtml = `<div class="mt-3 text-muted small fst-italic">No se encontraron movimientos recientes en logs para este proyecto.</div>`;
-          }
-
-          Swal.fire({
-              title: p.name,
-              html: `<div class="text-start small">
-                     <p><strong>Cliente:</strong> ${p.client}</p>
-                     <p><strong>Estimación:</strong> ${p.economic} (${p.economicDetail})</p>
-                     <p><strong>Creado:</strong> ${p.temporal} por <strong>${p.assigned}</strong></p>
-                     </div>
-                     ${logHtml}
-                     <div class="mt-3 text-center"><button class="btn btn-sm btn-outline-primary" onclick="swal.clickConfirm()">Cerrar</button></div>`,
-              showConfirmButton: false
-          });
-      };
-
       // --- GESTIÓN DE PROYECTOS (V138 - CASCADA) ---
       const showPpcSelectorModal = ref(false);
       const ppcMode = ref('SELECT');
@@ -1269,10 +1044,6 @@
               currentView.value = 'KPI_DASHBOARD';
               loadKPIData();
           }
-          else if(m.type === 'support_dashboard_view') {
-              currentView.value = 'SUPPORT_DASHBOARD';
-              loadSupportData();
-          }
       };
 
       const loadKPIData = () => {
@@ -1412,7 +1183,7 @@
       const updateDateFromPicker = (e, row, h) => { const val = e.target.value; if (!val) { row[h] = ''; return; } const parts = val.split('-'); if (parts.length === 3) row[h] = `${parts[2]}/${parts[1]}/${parts[0].slice(-2)}`; };
       
       return { isLoggedIn, loginPass, loginUser, loggingIn, doLogin, logout, currentUser, currentView, config, staffTracker, weeklyPlanData, searchQuery, goHome, selectDept, openStaffTracker, reloadStaffTracker, goBackToDept, saveRow, addNewRow, openModule, filteredStaff, getTrafficStyle, ppcData, isSubmitting, selectedResponsables, staffSearch, filteredDirectory, addResponsable, promptExtraData, confirmAddToQueue, activityQueue, submitBatch, clearQueue, pageTitle, openFileDialog, handleFileSelect, fileInput, isUploadingFile, uploadSuccess, closeIframe, showExtraModal, extraData, priorityOpts, riskOpts, salesStaff, cellFileInput, openCellUpload, handleCellFile, toIsoDate, updateDateFromPicker, formatDisplayDate, isMediaColumn, getColumnStyle, getHeaderLabel, isCol, deptStats, currentDeptData, currentModuleId, currentDept, ppcExistingData, dynamicPpc, saveDynamicPPC, getFechaRespuestaStyle, syncQueueToBackend, isCompact, toggleSidebar, loadWeeklyPlan, weeklyStats, savePPCV3Row, selectedWeek, availableWeeks, filteredWeeklyData, projectCards, activeProjectsList, projectSubFolders, openFolderContent, toggleExpand, showPpcSelectorModal, openPpcProjectSelector, ppcMode, selectPpcProject, createNewProject, newProject, currentPpcProject, loadCascadeTree, showSubProjectModal, currentTargetSite, newSubProject, openAddSubProject, createSubProject, openProjectTask, projectTasks, refreshProjectTasks, addNewProjectTask, saveProjectRow, 
-      ecgData, loadEcgData, renderEcgCharts, toInitials, showPassword, availableSpecialties, filterSpecialty, filterCompliance, kpiData, loadKPIData, supportData, supportDashboardTab, loadSupportData, filteredSupportProjects, showProjectAudit, supportSearch, supportFilterStatus, supportFilterUser, uniqueSupportUsers };
+      ecgData, loadEcgData, renderEcgCharts, toInitials, showPassword, availableSpecialties, filterSpecialty, filterCompliance, kpiData, loadKPIData };
     }
   });
   app.config.errorHandler = (err) => { console.error(err); Swal.fire({ icon: 'error', title: 'Error de Renderizado', text: 'Ocurrió un error visual: ' + err.message }); };
